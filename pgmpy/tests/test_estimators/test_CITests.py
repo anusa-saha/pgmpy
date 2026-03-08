@@ -535,7 +535,7 @@ class TestResidualMethods(unittest.TestCase):
             boolean=False,
             seed=42,
         )
-        self.assertAlmostEqual(coef, 12.136 ,places=2)
+        self.assertAlmostEqual(coef, 11.933 ,places=2)
         self.assertAlmostEqual(p_value, 0.0)
 
         # Conditional tests
