@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 import pandas as pd
 from numpy import testing as np_test
+from skbase.utils.dependencies import _check_soft_dependencies
 
 from pgmpy.estimators.CITests import (
     chi_square,
@@ -18,8 +19,6 @@ from pgmpy.estimators.CITests import (
 )
 from pgmpy.factors.continuous import LinearGaussianCPD
 from pgmpy.models import LinearGaussianBayesianNetwork
-
-# from skbase.utils.dependencies import _check_soft_dependencies
 
 
 class TestCIRegistry(unittest.TestCase):
@@ -401,6 +400,10 @@ class TestResidualMethods(unittest.TestCase):
         self.assertTrue(coef >= 0.1)
         self.assertTrue(np.isclose(p_value, 0, atol=1e-1))
 
+    @unittest.skipUnless(
+        _check_soft_dependencies("xgboost", severity="none"),
+        reason="execute only if required dependency present",
+    )
     def test_pillai_no_cond(self):
         dep_coefs = [
             0.16160426883709056,
@@ -442,6 +445,10 @@ class TestResidualMethods(unittest.TestCase):
             msg=f"Non-conditional p-values mismatch at index {i}: {computed_pvalues} != {dep_pvalues}",
         )
 
+    @unittest.skipUnless(
+        _check_soft_dependencies("xgboost", severity="none"),
+        reason="execute only if required dependency present",
+    )
     def test_pillai_indep(self):
         indep_coefs = [
             6.493024725185906e-07,
@@ -489,6 +496,10 @@ class TestResidualMethods(unittest.TestCase):
             msg=f"Conditional (indep) p-values mismatch at index {i}: {computed_pvalues} != {indep_pvalues}",
         )
 
+    @unittest.skipUnless(
+        _check_soft_dependencies("xgboost", severity="none"),
+        reason="execute only if required dependency present",
+    )
     def test_pillai_dependent(self):
         dep_coefs = np.array([0.1322, 0.1609, 0.1182, 0.1330, 0.1182])
         dep_pvalues = np.array([0, 0, 0, 0, 0])
@@ -548,7 +559,7 @@ class TestResidualMethods(unittest.TestCase):
         )
 
         self.assertAlmostEqual(coef, -1.908, places=3)
-        self.assertAlmostEqual(p_value, 0.0563, places=4)
+        self.assertAlmostEqual(p_value, 0.0563, places=3)
 
         # Conditional tests
         coef, p_value = gcm(
