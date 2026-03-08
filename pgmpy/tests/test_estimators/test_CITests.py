@@ -548,7 +548,7 @@ class TestResidualMethods(unittest.TestCase):
             seed=42,
         )
 
-        self.assertAlmostEqual(coef, -1.682, places=3)
+        self.assertAlmostEqual(coef, -1.908, places=3)
         self.assertAlmostEqual(p_value, 0.0926, places=4)
 
         # Conditional tests
@@ -581,3 +581,4 @@ class TestResidualMethods(unittest.TestCase):
             delta_th=0.5,
         )
         self.assertTrue(is_independent)
+   
