@@ -1,10 +1,9 @@
-import os
+# import os
 import unittest
 
 import numpy as np
 import pandas as pd
 from numpy import testing as np_test
-from skbase.utils.dependencies import _check_soft_dependencies
 
 from pgmpy.estimators.CITests import (
     chi_square,
@@ -19,6 +18,8 @@ from pgmpy.estimators.CITests import (
 )
 from pgmpy.factors.continuous import LinearGaussianCPD
 from pgmpy.models import LinearGaussianBayesianNetwork
+
+# from skbase.utils.dependencies import _check_soft_dependencies
 
 
 class TestCIRegistry(unittest.TestCase):
@@ -400,7 +401,6 @@ class TestResidualMethods(unittest.TestCase):
         self.assertTrue(coef >= 0.1)
         self.assertTrue(np.isclose(p_value, 0, atol=1e-1))
 
-
     def test_pillai_no_cond(self):
         dep_coefs = [
             0.16160426883709056,
@@ -441,7 +441,6 @@ class TestResidualMethods(unittest.TestCase):
             np.allclose(computed_pvalues, dep_pvalues, rtol=1e-2, atol=1e-2),
             msg=f"Non-conditional p-values mismatch at index {i}: {computed_pvalues} != {dep_pvalues}",
         )
-
 
     def test_pillai_indep(self):
         indep_coefs = [
@@ -535,7 +534,7 @@ class TestResidualMethods(unittest.TestCase):
             boolean=False,
             seed=42,
         )
-        self.assertAlmostEqual(coef, 11.933 ,places=2)
+        self.assertAlmostEqual(coef, 11.933, places=2)
         self.assertAlmostEqual(p_value, 0.0)
 
         # Conditional tests
@@ -581,4 +580,3 @@ class TestResidualMethods(unittest.TestCase):
             delta_th=0.5,
         )
         self.assertTrue(is_independent)
-   
