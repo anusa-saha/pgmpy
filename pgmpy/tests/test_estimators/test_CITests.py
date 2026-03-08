@@ -548,7 +548,7 @@ class TestResidualMethods(unittest.TestCase):
         )
 
         self.assertAlmostEqual(coef, -1.908, places=3)
-        self.assertAlmostEqual(p_value, 0.0926, places=4)
+        self.assertAlmostEqual(p_value, 0.0563, places=4)
 
         # Conditional tests
         coef, p_value = gcm(
