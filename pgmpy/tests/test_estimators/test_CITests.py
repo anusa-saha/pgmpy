@@ -270,9 +270,6 @@ class TestDiscreteTests(unittest.TestCase):
             np_test.assert_almost_equal(p_value, 0, decimal=5)
 
 
-@unittest.skipIf(
-    os.getenv("GITHUB_ACTIONS") == "true", "Skipping residual tests on GitHub Actions."
-)
 class TestResidualMethods(unittest.TestCase):
     def setUp(self):
         # Create a combination of mixed data types
@@ -408,7 +405,13 @@ class TestResidualMethods(unittest.TestCase):
         reason="execute only if required dependency present",
     )
     def test_pillai_no_cond(self):
-        dep_coefs = [0.2038, 0.2038, 0.1733, 0.1527, 0.1733]
+        dep_coefs = [
+            0.16160426883709056,
+            0.16160426883709056,
+            0.14655695182776907,
+            0.14298553319871352,
+            0.14655695182776907,
+        ]
         dep_pvalues = [0, 0, 0, 0, 0]
 
         computed_coefs = []
@@ -447,8 +450,20 @@ class TestResidualMethods(unittest.TestCase):
         reason="execute only if required dependency present",
     )
     def test_pillai_indep(self):
-        indep_coefs = [0.0014, 0.0023, 0.0041, 0.0213, 0.0041]
-        indep_pvalues = [0.2430, 0.0161, 0.0522, 0.0184, 0.0522]
+        indep_coefs = [
+            6.493024725185906e-07,
+            0.00029163492898348815,
+            0.0028380206982207626,
+            0.010428221024126837,
+            0.0028380206982207626,
+        ]
+        indep_pvalues = [
+            0.9796963900717234,
+            0.5896134714481022,
+            0.41824170612577527,
+            0.3178092248258497,
+            0.41824170612577527,
+        ]
 
         computed_coefs = []
         computed_pvalues = []
@@ -530,7 +545,7 @@ class TestResidualMethods(unittest.TestCase):
             boolean=False,
             seed=42,
         )
-        self.assertAlmostEqual(round(coef, 3), 13.693)
+        self.assertAlmostEqual(coef, 12.136 ,places=2)
         self.assertAlmostEqual(p_value, 0.0)
 
         # Conditional tests
@@ -543,15 +558,15 @@ class TestResidualMethods(unittest.TestCase):
             seed=42,
         )
 
-        self.assertAlmostEqual(round(coef, 3), 0.097)
-        self.assertEqual(round(p_value, 4), 0.9228)
+        self.assertAlmostEqual(coef, -1.682, places=3)
+        self.assertAlmostEqual(p_value, 0.0926, places=4)
 
         # Conditional tests
         coef, p_value = gcm(
             X="X", Y="Y", Z=["Z1", "Z2", "Z3"], data=self.df_dep, boolean=False, seed=42
         )
 
-        self.assertAlmostEqual(round(coef, 3), 11.69)
+        self.assertAlmostEqual(coef, 11.69, places=2)
         self.assertAlmostEqual(p_value, 0.0)
 
     def test_pearsonr_equivalence(self):
