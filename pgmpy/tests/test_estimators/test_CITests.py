@@ -400,10 +400,7 @@ class TestResidualMethods(unittest.TestCase):
         self.assertTrue(coef >= 0.1)
         self.assertTrue(np.isclose(p_value, 0, atol=1e-1))
 
-    @unittest.skipUnless(
-        _check_soft_dependencies("xgboost", severity="none"),
-        reason="execute only if required dependency present",
-    )
+
     def test_pillai_no_cond(self):
         dep_coefs = [
             0.16160426883709056,
@@ -445,10 +442,7 @@ class TestResidualMethods(unittest.TestCase):
             msg=f"Non-conditional p-values mismatch at index {i}: {computed_pvalues} != {dep_pvalues}",
         )
 
-    @unittest.skipUnless(
-        _check_soft_dependencies("xgboost", severity="none"),
-        reason="execute only if required dependency present",
-    )
+
     def test_pillai_indep(self):
         indep_coefs = [
             6.493024725185906e-07,
@@ -496,10 +490,6 @@ class TestResidualMethods(unittest.TestCase):
             msg=f"Conditional (indep) p-values mismatch at index {i}: {computed_pvalues} != {indep_pvalues}",
         )
 
-    @unittest.skipUnless(
-        _check_soft_dependencies("xgboost", severity="none"),
-        reason="execute only if required dependency present",
-    )
     def test_pillai_dependent(self):
         dep_coefs = np.array([0.1322, 0.1609, 0.1182, 0.1330, 0.1182])
         dep_pvalues = np.array([0, 0, 0, 0, 0])
