@@ -328,6 +328,7 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         >>> import pandas as pd
         >>> import numpy as np
         >>> from pgmpy.causal_discovery import PC
+        >>> np.random.seed(42)
         >>> data = pd.DataFrame(
         ...     np.random.randint(0, 4, size=(5000, 3)), columns=list("ABD")
         ... )
