@@ -337,14 +337,8 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         >>> c = PC()
         >>> _ = c.fit(data)
         >>> pdag = c._orient_colliders(c.skeleton_, c.separating_sets_)
-        >>> expected = {
-        ...     ("A", "C"),
-        ...     ("B", "C"),
-        ...     ("A", "D"),
-        ...     ("D", "A"),
-        ... }  # edges: A->C, B->C, A--D (not directed)
-        >>> expected.issubset(set(pdag.edges()))
-        True
+        >>> sorted(pdag.edges()) # edges: A->C, B->C, A--D (not directed)
+        [('A', 'C'), ('A', 'D'), ('B', 'C'), ('D', 'A'), ('D', 'C')]
 
         """
 
