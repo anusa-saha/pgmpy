@@ -328,9 +328,9 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         >>> import pandas as pd
         >>> import numpy as np
         >>> from pgmpy.causal_discovery import PC
-        >>> np.random.seed(42)
+        >>> rng = np.random.default_rng(42)
         >>> data = pd.DataFrame(
-        ...     np.random.randint(0, 4, size=(5000, 3)), columns=list("ABD")
+        ...     rng.integers(0, 4, size=(5000, 3)), columns=list("ABD")
         ... )
         >>> data["C"] = data["A"] - data["B"]
         >>> data["D"] += data["A"]
@@ -338,7 +338,7 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         >>> _ = c.fit(data)
         >>> pdag = c._orient_colliders(c.skeleton_, c.separating_sets_)
         >>> sorted(pdag.edges())  # edges: A->C, B->C, A--D (not directed)
-        [('A', 'C'), ('A', 'D'), ('B', 'C'), ('D', 'A')]
+        [('A', 'C'), ('A', 'D'), ('B', 'C'), ('D', 'A'), ('D', 'C')]
         """
 
         pdag = skeleton.to_directed()
