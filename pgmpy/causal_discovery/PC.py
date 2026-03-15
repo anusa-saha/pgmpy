@@ -338,8 +338,7 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         >>> _ = c.fit(data)
         >>> pdag = c._orient_colliders(c.skeleton_, c.separating_sets_)
         >>> sorted(pdag.edges())  # edges: A->C, B->C, A--D (not directed)
-        [('A', 'C'), ('A', 'D'), ('B', 'C'), ('D', 'A'), ('D', 'C')]
-
+        [('A', 'C'), ('A', 'D'), ('B', 'C'), ('D', 'A')]
         """
 
         pdag = skeleton.to_directed()
