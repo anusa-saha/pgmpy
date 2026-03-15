@@ -329,9 +329,7 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         >>> import numpy as np
         >>> from pgmpy.causal_discovery import PC
         >>> rng = np.random.default_rng(42)
-        >>> data = pd.DataFrame(
-        ...     rng.integers(0, 4, size=(5000, 3)), columns=list("ABD")
-        ... )
+        >>> data = pd.DataFrame(rng.integers(0, 4, size=(5000, 3)), columns=list("ABD"))
         >>> data["C"] = data["A"] - data["B"]
         >>> data["D"] += data["A"]
         >>> c = PC()
