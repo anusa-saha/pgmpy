@@ -331,9 +331,7 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         # as X->Z<-Y (Algorithm 3.4 in Koller & Friedman PGM, page 86)
         for X, Y in permutations(sorted(pdag.nodes()), 2):
             if not skeleton.has_edge(X, Y):
-                for Z in set(skeleton.neighbors(X)) & set(
-                    skeleton.neighbors(Y)
-                ):
+                for Z in set(skeleton.neighbors(X)) & set(skeleton.neighbors(Y)):
                     if Z not in separating_sets[frozenset((X, Y))]:
                         if (temporal_ordering == dict()) or (
                             (temporal_ordering[Z] >= temporal_ordering[X])
