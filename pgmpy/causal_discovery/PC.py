@@ -255,7 +255,9 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
 
         # Step 2: Use separating sets to orient colliders
         pdag = self._orient_colliders(
-            self.skeleton_, self.separating_sets_, expert_knowledge.temporal_ordering
+            self.skeleton_,
+            self.separating_sets_,
+            expert_knowledge.temporal_ordering,
         )
 
         # Step 3: apply orientation rules and expert knowledge
@@ -345,7 +347,9 @@ class PC(_ConstraintMixin, _BaseCausalDiscovery):
         # as X->Z<-Y (Algorithm 3.4 in Koller & Friedman PGM, page 86)
         for X, Y in permutations(sorted(pdag.nodes()), 2):
             if not skeleton.has_edge(X, Y):
-                for Z in set(skeleton.neighbors(X)) & set(skeleton.neighbors(Y)):
+                for Z in set(skeleton.neighbors(X)) & set(
+                    skeleton.neighbors(Y)
+                ):
                     if Z not in separating_sets[frozenset((X, Y))]:
                         if (temporal_ordering == dict()) or (
                             (temporal_ordering[Z] >= temporal_ordering[X])
