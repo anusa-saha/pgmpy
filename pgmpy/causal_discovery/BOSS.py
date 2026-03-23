@@ -70,22 +70,22 @@ class BOSS(_ScoreMixin, _BaseCausalDiscovery):
 
     max_iter : int, default=1000
     Maximum number of outer iterations of permutation search.
-    Examples 
-    -------- 
-    Simulate some data to use for causal discovery: 
-    >>> import numpy as np 
-    >>> from pgmpy.utils import get_example_model 
-    >>> np.random.seed(42) 
-    >>> model = get_example_model("alarm") 
-    >>> df = model.simulate(n_samples=1000, seed=42) 
-    
-    Use the BOSS algorithm to learn the causal structure from data: 
-    >>> from pgmpy.causal_discovery import BOSS 
-    >>> boss = BOSS(scoring_method="bic-d", random_state=42) 
-    >>> boss.fit(df) BOSS(random_state=42, scoring_method='bic-d') 
-    >>> boss.causal_graph_ # doctest: +ELLIPSIS 
-    <pgmpy.base...object at 0x...> 
-    >>> boss.n_features_in_ 
+    Examples
+    --------
+    Simulate some data to use for causal discovery:
+    >>> import numpy as np
+    >>> from pgmpy.utils import get_example_model
+    >>> np.random.seed(42)
+    >>> model = get_example_model("alarm")
+    >>> df = model.simulate(n_samples=1000, seed=42)
+
+    Use the BOSS algorithm to learn the causal structure from data:
+    >>> from pgmpy.causal_discovery import BOSS
+    >>> boss = BOSS(scoring_method="bic-d", random_state=42)
+    >>> boss.fit(df) BOSS(random_state=42, scoring_method='bic-d')
+    >>> boss.causal_graph_ # doctest: +ELLIPSIS
+    <pgmpy.base...object at 0x...>
+    >>> boss.n_features_in_
     37
 
     Notes
@@ -152,11 +152,11 @@ class BOSS(_ScoreMixin, _BaseCausalDiscovery):
         dag = self._project_permutation(perm, score_fn)
 
         pdag = dag.to_pdag()
-        
+
         model = self._run_bes(pdag, score_fn)
 
         rt = self.return_type.lower()
-        
+
         if rt == "dag":
             self.causal_graph_ = model
         elif rt in {"pdag", "cpdag"}:
