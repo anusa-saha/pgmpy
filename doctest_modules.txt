@@ -37,3 +37,4 @@ pgmpy/models/NaiveBayes.py
 pgmpy/utils/mathext.py
 pgmpy/inference/CausalInference.py
 pgmpy/models/DynamicBayesianNetwork.py
+pgmpy/factors/continuous/LinearGaussianCPD.py
