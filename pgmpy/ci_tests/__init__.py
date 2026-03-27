@@ -10,7 +10,7 @@ from .pearsonr import Pearsonr
 from .pearsonr_equivalence import PearsonrEquivalence
 from .pillai_trace import PillaiTrace
 from .power_divergence import PowerDivergence
-from .projection_distance_covariance import ProjectedDistanceCovariance
+from .projected_distance_covariance import ProjectedDistanceCovariance
 
 __all__ = [
     "_BaseCITest",

@@ -76,11 +76,11 @@ class ProjectedDistanceCovariance(_BaseCITest):
         if Z and len(Z) > 0:
             Zv = data[Z].values
 
-            model_x = LinearRegression().fit(Zv, Xv)
-            model_y = LinearRegression().fit(Zv, Yv)
+            model_x = LinearRegression().fit(Zv, Xv.ravel())
+            model_y = LinearRegression().fit(Zv, Yv.ravel())
 
-            eps_x = Xv - model_x.predict(Zv)
-            eps_y = Yv - model_y.predict(Zv)
+            eps_x = Xv - model_x.predict(Zv).reshape(-1, 1)
+            eps_y = Yv - model_y.predict(Zv).reshape(-1, 1)
         else:
             eps_x = Xv
             eps_y = Yv
