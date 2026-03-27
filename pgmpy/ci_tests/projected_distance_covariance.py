@@ -94,7 +94,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
         B = b - b.mean(axis=0) - b.mean(axis=1)[:, None] + b.mean()
 
         V2 = (A * B).sum() / (n * n)
-        statistic = n * V2 
+        statistic = n * V2
 
         rng = np.random.default_rng(self.random_state)
         perm_stats = []
