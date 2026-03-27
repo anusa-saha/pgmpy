@@ -33,7 +33,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
     data : pandas.DataFrame
         The dataset in which to test the independence condition.
 
-    num_perm : int, default=100
+    num_perm : int, default=20
         Number of permutations for significance testing.
 
     random_state : int or None
@@ -60,7 +60,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
         "requires_data": True,
     }
 
-    def __init__(self, data: pd.DataFrame, num_perm: int = 100, random_state: int = None):
+    def __init__(self, data: pd.DataFrame, num_perm: int = 20, random_state: int = None):
         self.data = data
         self.num_perm = num_perm
         self.random_state = random_state
@@ -73,7 +73,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
         Xv = data[[X]].values.reshape(-1, 1)
         Yv = data[[Y]].values.reshape(-1, 1)
 
-        if Z and len(Z) > 0:
+        if Z:
             Zv = data[Z].values
 
             model_x = LinearRegression().fit(Zv, Xv.ravel())
