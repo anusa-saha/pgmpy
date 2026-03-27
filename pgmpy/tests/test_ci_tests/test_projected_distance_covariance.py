@@ -11,10 +11,6 @@ from pgmpy.factors.hybrid import FunctionalCPD
 from pgmpy.models import FunctionalBayesianNetwork, LinearGaussianBayesianNetwork
 
 
-@unittest.skipUnless(
-    _check_soft_dependencies("pyro-ppl", severity="none"),
-    reason="requires pyro-ppl (FunctionalBayesianNetwork backend)",
-)
 @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skipping residual tests on GitHub Actions.")
 class TestProjectedDistanceCovariance(unittest.TestCase):
     def setUp(self):
@@ -55,6 +51,10 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
         model_dep_linear.add_cpds(cpd_z1_linear, cpd_z2_linear, cpd_z3_linear, cpd_x_linear, cpd_y_dep_linear)
         self.df_dep_linear = model_dep_linear.simulate(n_samples=1000, seed=42)
 
+    @unittest.skipUnless(
+        _check_soft_dependencies("pyro-ppl", severity="none"),
+        reason="requires pyro-ppl (FunctionalBayesianNetwork backend)",
+    )
     def setUp_nonlinear(self):
         import pyro.distributions as dist
 
@@ -116,12 +116,12 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Non-conditional test
         test("X", "Y", [])
-        self.assertAlmostEqual(round(test.statistic_, 3), 44.67, delta=1)
+        self.assertAlmostEqual(round(test.statistic_, 3), 44.67)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
         # Conditional test (independent)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 1.489, delta=0.15)
+        self.assertAlmostEqual(round(test.statistic_, 3), 1.489)
         self.assertEqual(round(test.p_value_, 4), 0.3)
 
         # Conditional test (dependent)
