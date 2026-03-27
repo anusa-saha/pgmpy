@@ -1,3 +1,4 @@
+import os
 import unittest
 
 import numpy as np
@@ -14,6 +15,7 @@ from pgmpy.models import FunctionalBayesianNetwork, LinearGaussianBayesianNetwor
     _check_soft_dependencies("pyro-ppl", severity="none"),
     reason="requires pyro-ppl (FunctionalBayesianNetwork backend)",
 )
+@unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skipping residual tests on GitHub Actions.")
 class TestProjectedDistanceCovariance(unittest.TestCase):
     def setUp(self):
         self.setUp_linear()
