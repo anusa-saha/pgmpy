@@ -1,14 +1,14 @@
 import unittest
 
 import numpy as np
-import pyro.distributions as dist
+from skbase.utils.dependencies import _check_soft_dependencies
 
 from pgmpy import config
 from pgmpy.ci_tests import ProjectedDistanceCovariance
 from pgmpy.factors.continuous import LinearGaussianCPD
 from pgmpy.factors.hybrid import FunctionalCPD
 from pgmpy.models import FunctionalBayesianNetwork, LinearGaussianBayesianNetwork
-from skbase.utils.dependencies import _check_soft_dependencies
+
 
 @unittest.skipUnless(
     _check_soft_dependencies("pyro-ppl", severity="none"),
@@ -54,6 +54,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
         self.df_dep_linear = model_dep_linear.simulate(n_samples=1000, seed=42)
 
     def setUp_nonlinear(self):
+        import pyro.distributions as dist
         config.set_backend("torch")
 
         model_indep_non_linear = FunctionalBayesianNetwork(
