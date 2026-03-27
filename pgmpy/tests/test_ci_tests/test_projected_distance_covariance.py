@@ -114,18 +114,18 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Non-conditional test
         test("X", "Y", [])
-        self.assertAlmostEqual(round(test.statistic_, 3), 44.67)
+        self.assertAlmostEqual(round(test.statistic_, 3), 101.129)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
         # Conditional test (independent)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 1.489)
+        self.assertAlmostEqual(round(test.statistic_, 3), 1.884)
         self.assertEqual(round(test.p_value_, 4), 0.3)
 
         # Conditional test (dependent)
         test = ProjectedDistanceCovariance(data=self.df_dep_linear, random_state=42)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 40.412)
+        self.assertAlmostEqual(round(test.statistic_, 3), 55.599)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
     def test_projected_distance_covariance_non_linear(self):
@@ -133,16 +133,16 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Non-conditional test
         test("X", "Y", [])
-        self.assertAlmostEqual(round(test.statistic_, 3), 15.454)
+        self.assertAlmostEqual(round(test.statistic_, 3), 89.33)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
         # Conditional test (independent)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 0.59)
+        self.assertAlmostEqual(round(test.statistic_, 3), 1.828)
         self.assertEqual(round(test.p_value_, 4), 0.9)
 
         # Conditional test (dependent)
         test = ProjectedDistanceCovariance(data=self.df_dep_non_linear, random_state=42)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 3.37)
+        self.assertAlmostEqual(round(test.statistic_, 3), 11.003)
         self.assertAlmostEqual(test.p_value_, 0.0)

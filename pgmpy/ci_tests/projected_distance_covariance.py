@@ -94,8 +94,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
         B = b - b.mean(axis=0) - b.mean(axis=1)[:, None] + b.mean()
 
         V2 = (A * B).sum() / (n * n)
-        S2 = a.mean() * b.mean()
-        statistic = n * V2 / S2
+        statistic = n * V2 
 
         rng = np.random.default_rng(self.random_state)
         perm_stats = []
@@ -108,8 +107,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
             Bp = b_perm - b_perm.mean(axis=0) - b_perm.mean(axis=1)[:, None] + b_perm.mean()
 
             V2_perm = (A * Bp).sum() / (n * n)
-            S2_perm = a.mean() * b_perm.mean()
-            perm_stats.append(n * V2_perm / S2_perm)
+            perm_stats.append(n * V2_perm)
 
         perm_stats = np.array(perm_stats)
         p_value = np.mean(perm_stats >= statistic)
