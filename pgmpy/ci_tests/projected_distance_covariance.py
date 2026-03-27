@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy.spatial.distance import pdist, squareform
 from sklearn.linear_model import LinearRegression
 
 from ._base import _BaseCITest
@@ -86,12 +87,8 @@ class ProjectedDistanceCovariance(_BaseCITest):
 
         n = eps_x.shape[0]
 
-        def pairwise_distances(X):
-            diff = X[:, None, :] - X[None, :, :]
-            return np.sqrt((diff**2).sum(axis=2))
-
-        a = pairwise_distances(eps_x)
-        b = pairwise_distances(eps_y)
+        a = squareform(pdist(eps_x))
+        b = squareform(pdist(eps_y))
 
         A = a - a.mean(axis=0) - a.mean(axis=1)[:, None] + a.mean()
         B = b - b.mean(axis=0) - b.mean(axis=1)[:, None] + b.mean()
@@ -106,7 +103,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
             perm = rng.permutation(n)
             eps_y_perm = eps_y[perm]
 
-            b_perm = pairwise_distances(eps_y_perm)
+            b_perm = squareform(pdist(eps_y_perm))
             Bp = b_perm - b_perm.mean(axis=0) - b_perm.mean(axis=1)[:, None] + b_perm.mean()
 
             V2_perm = (A * Bp).sum() / (n * n)

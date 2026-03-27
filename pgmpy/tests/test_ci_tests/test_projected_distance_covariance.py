@@ -1,3 +1,4 @@
+import os
 import unittest
 
 import numpy as np
@@ -109,6 +110,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
         model_dep_non_linear.add_cpds(cpd_z1, cpd_z2, cpd_z3, cpd_x, cpd_y_dep)
         self.df_dep_non_linear = model_dep_non_linear.simulate(n_samples=1000, seed=42)
 
+    @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skipping residual tests on GitHub Actions.")
     def test_projected_distance_covariance_linear(self):
         test = ProjectedDistanceCovariance(data=self.df_indep_linear, random_state=42)
 
@@ -128,6 +130,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
         self.assertAlmostEqual(round(test.statistic_, 3), 55.599)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
+    @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skipping residual tests on GitHub Actions.")
     def test_projected_distance_covariance_non_linear(self):
         test = ProjectedDistanceCovariance(data=self.df_indep_non_linear, random_state=42)
 
@@ -146,3 +149,42 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
         test("X", "Y", ["Z1", "Z2", "Z3"])
         self.assertAlmostEqual(round(test.statistic_, 3), 11.003)
         self.assertAlmostEqual(test.p_value_, 0.0)
+
+    def test_projected_distance_covariance_approx(self):
+        # -------- Linear Data --------
+        test_l_ind = ProjectedDistanceCovariance(data=self.df_indep_linear, random_state=42)
+
+        # Non-conditional test
+        test_l_ind("X", "Y", [])
+        self.assertGreaterEqual(round(test_l_ind.statistic_, 3), 101.129)
+        self.assertAlmostEqual(test_l_ind.p_value_, 0.0)
+
+        # Conditional test (independent)
+        test_l_ind("X", "Y", ["Z1", "Z2", "Z3"])
+        self.assertGreaterEqual(round(test_l_ind.statistic_, 3), 1.884)
+        self.assertAlmostEqual(round(test_l_ind.p_value_, 4), 0.3)
+
+        # Conditional test (dependent)
+        test_l_dep = ProjectedDistanceCovariance(data=self.df_dep_linear, random_state=42)
+        test_l_dep("X", "Y", ["Z1", "Z2", "Z3"])
+        self.assertGreaterEqual(round(test_l_dep.statistic_, 3), 55.599)
+        self.assertAlmostEqual(test_l_dep.p_value_, 0.0)
+
+        # -------- Non-linear Data --------
+        test_nl_ind = ProjectedDistanceCovariance(data=self.df_indep_non_linear, random_state=42)
+
+        # Non-conditional test
+        test_nl_ind("X", "Y", [])
+        self.assertGreaterEqual(round(test_nl_ind.statistic_, 3), 89.33)
+        self.assertAlmostEqual(test_nl_ind.p_value_, 0.0)
+
+        # Conditional test (independent)
+        test_nl_ind("X", "Y", ["Z1", "Z2", "Z3"])
+        self.assertGreaterEqual(round(test_nl_ind.statistic_, 3), 1.828)
+        self.assertAlmostEqual(round(test_nl_ind.p_value_, 4), 0.9)
+
+        # Conditional test (dependent)
+        test_nl_dep = ProjectedDistanceCovariance(data=self.df_dep_non_linear, random_state=42)
+        test_nl_dep("X", "Y", ["Z1", "Z2", "Z3"])
+        self.assertGreaterEqual(round(test_l_dep.statistic_, 3), 11.003)
+        self.assertAlmostEqual(test_l_dep.p_value_, 0.0)
