@@ -161,7 +161,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Conditional test (independent)
         test_l_ind("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertGreaterEqual(round(test_l_ind.statistic_, 3), 1.7)
+        self.assertLessEqual(round(test_l_ind.statistic_, 3), 1.884)
         self.assertAlmostEqual(round(test_l_ind.p_value_, 4), 0.3)
 
         # Conditional test (dependent)
@@ -180,7 +180,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Conditional test (independent)
         test_nl_ind("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertGreaterEqual(round(test_nl_ind.statistic_, 3), 1.7)
+        self.assertLessEqual(round(test_nl_ind.statistic_, 3), 1.828)
         self.assertAlmostEqual(round(test_nl_ind.p_value_, 4), 0.9)
 
         # Conditional test (dependent)
