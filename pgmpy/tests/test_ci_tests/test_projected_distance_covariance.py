@@ -8,8 +8,12 @@ from pgmpy.ci_tests import ProjectedDistanceCovariance
 from pgmpy.factors.continuous import LinearGaussianCPD
 from pgmpy.factors.hybrid import FunctionalCPD
 from pgmpy.models import FunctionalBayesianNetwork, LinearGaussianBayesianNetwork
+from skbase.utils.dependencies import _check_soft_dependencies
 
-
+@unittest.skipUnless(
+    _check_soft_dependencies("pyro-ppl", severity="none"),
+    reason="requires pyro-ppl (FunctionalBayesianNetwork backend)",
+)
 class TestProjectedDistanceCovariance(unittest.TestCase):
     def setUp(self):
         self.setUp_linear()
