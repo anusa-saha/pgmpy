@@ -186,5 +186,5 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
         # Conditional test (dependent)
         test_nl_dep = ProjectedDistanceCovariance(data=self.df_dep_non_linear, random_state=42)
         test_nl_dep("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertGreaterEqual(round(test_l_dep.statistic_, 3), 11.003)
-        self.assertAlmostEqual(test_l_dep.p_value_, 0.0)
+        self.assertGreaterEqual(round(test_nl_dep.statistic_, 3), 11.003)
+        self.assertAlmostEqual(test_nl_dep.p_value_, 0.0)
