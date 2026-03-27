@@ -1,4 +1,3 @@
-import os
 import unittest
 
 import numpy as np
@@ -11,7 +10,6 @@ from pgmpy.factors.hybrid import FunctionalCPD
 from pgmpy.models import FunctionalBayesianNetwork, LinearGaussianBayesianNetwork
 
 
-@unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skipping residual tests on GitHub Actions.")
 class TestProjectedDistanceCovariance(unittest.TestCase):
     def setUp(self):
         self.setUp_linear()
