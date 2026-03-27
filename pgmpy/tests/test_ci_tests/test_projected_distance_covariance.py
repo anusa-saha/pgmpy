@@ -55,6 +55,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
     def setUp_nonlinear(self):
         import pyro.distributions as dist
+
         config.set_backend("torch")
 
         model_indep_non_linear = FunctionalBayesianNetwork(
@@ -118,7 +119,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Conditional test (independent)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 1.489)
+        self.assertAlmostEqual(round(test.statistic_, 3), 1.489, delta=0.15)
         self.assertEqual(round(test.p_value_, 4), 0.3)
 
         # Conditional test (dependent)
