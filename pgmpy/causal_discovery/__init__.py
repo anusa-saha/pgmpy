@@ -1,16 +1,8 @@
-from pgmpy.causal_discovery.ExpertInLoop import ExpertInLoop
-from pgmpy.causal_discovery.ExpertKnowledge import ExpertKnowledge
-from pgmpy.causal_discovery.GES import GES
-from pgmpy.causal_discovery.HillClimbSearch import HillClimbSearch
-from pgmpy.causal_discovery.PC import PC
-from pgmpy.causal_discovery.TreeSearch import TreeSearch
+from .ExpertInLoop import ExpertInLoop
+from .ExpertKnowledge import ExpertKnowledge
+from .GES import GES
+from .HillClimbSearch import HillClimbSearch
+from .PC import PC
+from .TreeSearch import TreeSearch
 
-__all__ = [
-    "ExpertInLoop",
-    "ExpertKnowledge",
-    "GES",
-    "HillClimbSearch",
-    "PC",
-    "TreeSearch"
-]
-
+__all__ = ["ExpertInLoop", "ExpertKnowledge", "GES", "HillClimbSearch", "PC", "TreeSearch"]
