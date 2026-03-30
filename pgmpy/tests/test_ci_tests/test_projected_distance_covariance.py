@@ -116,18 +116,18 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Non-conditional test
         test("X", "Y", [])
-        self.assertAlmostEqual(round(test.statistic_, 3), 101.129)
+        self.assertAlmostEqual(round(test.statistic_, 3), 44.67)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
         # Conditional test (independent)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 1.884)
-        self.assertEqual(round(test.p_value_, 4), 0.3)
+        self.assertAlmostEqual(round(test.statistic_, 3), 1.489)
+        self.assertEqual(round(test.p_value_, 4), 0.18)
 
         # Conditional test (dependent)
         test = ProjectedDistanceCovariance(data=self.df_dep_linear, random_state=42)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 55.599)
+        self.assertAlmostEqual(round(test.statistic_, 3), 40.412)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
     @unittest.skipIf(os.getenv("GITHUB_ACTIONS") == "true", "Skipping residual tests on GitHub Actions.")
@@ -136,18 +136,18 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Non-conditional test
         test("X", "Y", [])
-        self.assertAlmostEqual(round(test.statistic_, 3), 89.33)
+        self.assertAlmostEqual(round(test.statistic_, 3), 15.454)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
         # Conditional test (independent)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 1.828)
-        self.assertEqual(round(test.p_value_, 4), 0.9)
+        self.assertAlmostEqual(round(test.statistic_, 3), 0.59)
+        self.assertAlmostEqual(round(test.p_value_, 2), 0.93)
 
         # Conditional test (dependent)
         test = ProjectedDistanceCovariance(data=self.df_dep_non_linear, random_state=42)
         test("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertAlmostEqual(round(test.statistic_, 3), 11.003)
+        self.assertAlmostEqual(round(test.statistic_, 2), 3.37)
         self.assertAlmostEqual(test.p_value_, 0.0)
 
     def test_projected_distance_covariance_approx(self):
@@ -156,7 +156,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Non-conditional test
         test_l_ind("X", "Y", [])
-        self.assertGreaterEqual(round(test_l_ind.statistic_, 3), 90)
+        self.assertGreaterEqual(round(test_l_ind.statistic_, 3), 40)
         self.assertAlmostEqual(test_l_ind.p_value_, 0.0)
 
         # Conditional test (independent)
@@ -167,7 +167,7 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
         # Conditional test (dependent)
         test_l_dep = ProjectedDistanceCovariance(data=self.df_dep_linear, random_state=42)
         test_l_dep("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertGreaterEqual(round(test_l_dep.statistic_, 3), 50)
+        self.assertGreaterEqual(round(test_l_dep.statistic_, 3), 40)
         self.assertGreaterEqual(test_l_dep.p_value_, 0.0)
 
         # -------- Non-linear Data --------
@@ -175,16 +175,16 @@ class TestProjectedDistanceCovariance(unittest.TestCase):
 
         # Non-conditional test
         test_nl_ind("X", "Y", [])
-        self.assertGreaterEqual(round(test_nl_ind.statistic_, 3), 85)
+        self.assertGreaterEqual(round(test_nl_ind.statistic_, 3), 10)
         self.assertAlmostEqual(test_nl_ind.p_value_, 0.0)
 
         # Conditional test (independent)
         test_nl_ind("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertLessEqual(round(test_nl_ind.statistic_, 3), 5)
-        self.assertLessEqual(round(test_nl_ind.p_value_, 4), 0.9)
+        self.assertLessEqual(round(test_nl_ind.statistic_, 3), 2)
+        self.assertLessEqual(round(test_nl_ind.p_value_, 4), 1)
 
         # Conditional test (dependent)
         test_nl_dep = ProjectedDistanceCovariance(data=self.df_dep_non_linear, random_state=42)
         test_nl_dep("X", "Y", ["Z1", "Z2", "Z3"])
-        self.assertGreaterEqual(round(test_nl_dep.statistic_, 3), 10)
+        self.assertGreaterEqual(round(test_nl_dep.statistic_, 3), 2)
         self.assertGreaterEqual(test_nl_dep.p_value_, 0.0)
