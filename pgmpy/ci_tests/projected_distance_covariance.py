@@ -59,9 +59,9 @@ class ProjectedDistanceCovariance(_BaseCITest):
     >>> test = ProjectedDistanceCovariance(data=data, num_perm=100, random_state=0)
     >>> stat, pval = test.run_test("X", "Y", ["Z"])
     >>> round(stat,3)
-    1.487
+    np.float64(1.487)
     >>> round(pval,2)
-    0.18
+    np.float(0.18)
 
 
     References
