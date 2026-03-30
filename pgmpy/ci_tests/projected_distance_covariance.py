@@ -61,7 +61,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
     >>> round(stat,3)
     np.float64(1.487)
     >>> round(pval,2)
-    np.float(0.18)
+    np.float64(0.18)
 
 
     References
