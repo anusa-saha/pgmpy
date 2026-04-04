@@ -11,6 +11,7 @@ pgmpy/base/UndirectedGraph.py
 pgmpy/base/UndirectedGraph.py
 pgmpy/causal_discovery/GES.py
 pgmpy/causal_discovery/PC.py
+pgmpy/causal_discovery/TreeSearch.py
 pgmpy/ci_tests/_base.py
 pgmpy/ci_tests/chi_square.py
 pgmpy/ci_tests/fisher_z.py
@@ -68,4 +69,6 @@ pgmpy/structure_score/log_likelihood_cond_gauss.py
 pgmpy/structure_score/log_likelihood_gauss.py
 pgmpy/utils/mathext.py
 pgmpy/utils/state_name.py
-pgmpy/causal_discovery/TreeSearch.py
+pgmpy/readwrite/NET.py
+pgmpy/readwrite/UAI.py
+pgmpy/readwrite/XMLBIF.py
