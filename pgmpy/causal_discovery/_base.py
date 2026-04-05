@@ -630,9 +630,7 @@ class _TreeSearchMixin:
         if show_progress and config.SHOW_PROGRESS:
             pbar = tqdm(pbar, total=(n_vars * (n_vars - 1) / 2), desc="Building tree")
 
-        vals = Parallel(n_jobs=n_jobs)(
-            delayed(edge_weights_fn)(data.loc[:, u], data.loc[:, v]) for u, v in pbar
-        )
+        vals = Parallel(n_jobs=n_jobs)(delayed(edge_weights_fn)(data.loc[:, u], data.loc[:, v]) for u, v in pbar)
         weights = np.zeros((n_vars, n_vars))
         indices = np.triu_indices(n_vars, k=1)
         weights[indices] = vals
