@@ -611,19 +611,6 @@ class _TreeSearchMixin:
         weights : np.ndarray, shape (n_columns, n_columns)
             Symmetric matrix where ``weights[i, j]`` is the edge weight between
             variable *i* and variable *j*.
-
-        Examples
-        --------
-        >>> import numpy as np
-        >>> import pandas as pd
-        >>> from pgmpy.causal_discovery import ChowLiu
-        >>> values = pd.DataFrame(
-        ...     np.random.randint(low=0, high=2, size=(1000, 5)),
-        ...     columns=["A", "B", "C", "D", "E"],
-        ... )
-        >>> weights = ChowLiu._get_weights(values, show_progress=False)
-        >>> weights.shape
-        (5, 5)
         """
         if edge_weights_fn == "mutual_info":
             edge_weights_fn = mutual_info_score
