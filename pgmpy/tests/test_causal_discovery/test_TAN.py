@@ -1,10 +1,9 @@
-import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
 from joblib.externals.loky import get_reusable_executor
 
-from pgmpy.causal_discovery import TreeSearch
+from pgmpy.causal_discovery import TAN
 from pgmpy.example_models import load_model
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.models import DiscreteBayesianNetwork
@@ -131,48 +130,8 @@ def alarm_df():
 
 @pytest.mark.parametrize("weight_fn", ["mutual_info", "adjusted_mutual_info", "normalized_mutual_info"])
 @pytest.mark.parametrize("n_jobs", [2, 1])
-def test_chow_liu(data12, data13, weight_fn, n_jobs):
-    est = TreeSearch(
-        estimator_type="chow-liu",
-        root_node="A",
-        edge_weights_fn=weight_fn,
-        n_jobs=n_jobs,
-        show_progress=False,
-    ).fit(data12)
-    dag = est.causal_graph_
-
-    assert set(dag.nodes()) == {"A", "B", "C", "D", "E"}
-    assert nx.is_tree(dag)
-
-    est = TreeSearch(
-        estimator_type="chow-liu",
-        root_node="A",
-        edge_weights_fn=weight_fn,
-        n_jobs=n_jobs,
-        show_progress=False,
-    ).fit(data13)
-    dag = est.causal_graph_
-
-    assert set(dag.nodes()) == {"A", "B", "C", "D", "E", "F"}
-    assert set(dag.edges()) == {
-        ("A", "B"),
-        ("A", "C"),
-        ("B", "D"),
-        ("B", "E"),
-        ("C", "F"),
-    }
-    assert dag.has_edge("A", "B")
-    assert dag.has_edge("A", "C")
-    assert dag.has_edge("B", "D")
-    assert dag.has_edge("B", "E")
-    assert dag.has_edge("C", "F")
-
-
-@pytest.mark.parametrize("weight_fn", ["mutual_info", "adjusted_mutual_info", "normalized_mutual_info"])
-@pytest.mark.parametrize("n_jobs", [2, 1])
 def test_tan(data22, weight_fn, n_jobs):
-    est = TreeSearch(
-        estimator_type="tan",
+    est = TAN(
         root_node="R",
         class_node="A",
         edge_weights_fn=weight_fn,
@@ -203,30 +162,15 @@ def test_tan(data22, weight_fn, n_jobs):
     assert dag.has_edge("R", "E")
 
 
-def test_chow_liu_auto_root_node(data12):
-    weights = TreeSearch._get_weights(data12, show_progress=False)
-    sum_weights = weights.sum(axis=0)
-    maxw_idx = np.argsort(sum_weights)[::-1]
-    root_node = data12.columns[maxw_idx[0]]
-
-    est = TreeSearch(estimator_type="chow-liu", show_progress=False).fit(data12)
-    dag = est.causal_graph_
-    nodes = list(dag.nodes())
-
-    assert nodes[0] == root_node
-    assert nodes == ["D", "A", "C", "B", "E"]
-
-
 def test_tan_auto_class_node(data22):
     # _get_weights is a static method — call it on the class, not an instance.
-    weights = TreeSearch._get_weights(data22, show_progress=False)
+    weights = TAN._get_weights(data22, show_progress=False)
     sum_weights = weights.sum(axis=0)
     maxw_idx = np.argsort(sum_weights)[::-1]
     root_node = data22.columns[maxw_idx[0]]
     class_node = data22.columns[maxw_idx[1]]
 
-    est = TreeSearch(
-        estimator_type="tan",
+    est = TAN(
         class_node=class_node,
         show_progress=False,
     ).fit(data22)
@@ -301,8 +245,7 @@ def test_tan_real_dataset(alarm_df):
     ]
     target = "CVP"
 
-    est = TreeSearch(
-        estimator_type="tan",
+    est = TAN(
         root_node=features[0],
         class_node=target,
         show_progress=False,

@@ -72,3 +72,5 @@ pgmpy/utils/state_name.py
 pgmpy/readwrite/NET.py
 pgmpy/readwrite/UAI.py
 pgmpy/readwrite/XMLBIF.py
+pgmpy/causal_discovery/ChowLiu.py
+pgmpy/causal_discovery/TAN.py

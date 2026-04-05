@@ -1,8 +1,9 @@
+from .ChowLiu import ChowLiu
 from .ExpertInLoop import ExpertInLoop
 from .ExpertKnowledge import ExpertKnowledge
 from .GES import GES
 from .HillClimbSearch import HillClimbSearch
 from .PC import PC
-from .TreeSearch import TreeSearch
+from .TAN import TAN
 
-__all__ = ["ExpertInLoop", "ExpertKnowledge", "GES", "HillClimbSearch", "PC", "TreeSearch"]
+__all__ = ["ChowLiu", "ExpertInLoop", "ExpertKnowledge", "GES", "HillClimbSearch", "PC", "TAN"]
