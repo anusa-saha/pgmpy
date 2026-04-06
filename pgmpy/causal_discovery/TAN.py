@@ -80,8 +80,9 @@ class TAN(_TreeSearchMixin, _BaseCausalDiscovery):
     >>> import networkx as nx
     >>> import matplotlib.pyplot as plt
     >>> from pgmpy.causal_discovery import TAN
+    >>> rng = np.random.default_rng(42)
     >>> values = pd.DataFrame(
-    ...     np.random.randint(low=0, high=2, size=(1000, 5)),
+    ...     rng.integers(low=0, high=2, size=(1000, 5)),
     ...     columns=["A", "B", "C", "D", "E"],
     ... )
 
