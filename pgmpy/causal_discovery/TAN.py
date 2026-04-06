@@ -156,14 +156,14 @@ class TAN(_TreeSearchMixin, _BaseCausalDiscovery):
             maxw_idx = np.argsort(sum_weights)[::-1]
             root_node = X.columns[maxw_idx[0]]
 
-        # Step 3: Ensure root_node and class_node are distinct.
-        if root_node == self.class_node:
-            raise ValueError(f"Root node: {root_node} and class node: {self.class_node} are identical")
-
-        # Step 4: Compute conditional edge weights I(X; Y | class_node).
+        # Step 3: Compute conditional edge weights I(X; Y | class_node).
         weights = self._get_conditional_weights(
             X, self.class_node, self.edge_weights_fn, self.n_jobs, self.show_progress
         )
+
+        # Step 4: Ensure root_node and class_node are distinct.
+        if root_node == self.class_node:
+            raise ValueError(f"Root node: {root_node} and class node: {self.class_node} are identical")
 
         # Step 5: Construct Chow-Liu DAG on {data.columns - class_node}.
         class_node_idx = np.where(X.columns == self.class_node)[0][0]
@@ -215,18 +215,6 @@ class TAN(_TreeSearchMixin, _BaseCausalDiscovery):
         weights : np.ndarray, shape (n_columns, n_columns)
             Symmetric matrix where ``weights[i, j]`` is I(i; j | class_node).
 
-        Examples
-        --------
-        >>> import numpy as np
-        >>> import pandas as pd
-        >>> from pgmpy.causal_discovery import TAN
-        >>> values = pd.DataFrame(
-        ...     np.random.randint(low=0, high=2, size=(1000, 5)),
-        ...     columns=["A", "B", "C", "D", "E"],
-        ... )
-        >>> weights = TAN._get_conditional_weights(values, class_node="A", show_progress=False)
-        >>> weights.shape
-        (5, 5)
         """
         # Step 0: Resolve the edge weight computation function.
         if edge_weights_fn == "mutual_info":
