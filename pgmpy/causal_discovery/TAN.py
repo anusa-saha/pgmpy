@@ -80,9 +80,8 @@ class TAN(_TreeSearchMixin, _BaseCausalDiscovery):
     >>> import networkx as nx
     >>> import matplotlib.pyplot as plt
     >>> from pgmpy.causal_discovery import TAN
-    >>> rng = np.random.default_rng(42)
     >>> values = pd.DataFrame(
-    ...     rng.integers(low=0, high=2, size=(1000, 5)),
+    ...     np.random.randint(low=0, high=2, size=(1000, 5)),
     ...     columns=["A", "B", "C", "D", "E"],
     ... )
 
@@ -152,10 +151,12 @@ class TAN(_TreeSearchMixin, _BaseCausalDiscovery):
         root_node = self.root_node
         # Step 2: Determine root node.
         if root_node is None:
-            weights = self._get_weights(X, self.edge_weights_fn, self.n_jobs, self.show_progress)
+            # Exclude class node
+            features = X.drop(columns=[self.class_node])
+            weights = self._get_weights(features, self.edge_weights_fn, self.n_jobs, self.show_progress)
             sum_weights = weights.sum(axis=0)
             maxw_idx = np.argsort(sum_weights)[::-1]
-            root_node = X.columns[maxw_idx[0]]
+            root_node = features.columns[maxw_idx[0]]
 
         # Step 3: Compute conditional edge weights I(X; Y | class_node).
         weights = self._get_conditional_weights(
