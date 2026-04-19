@@ -72,4 +72,3 @@ pgmpy/readwrite/BIF.py
 pgmpy/readwrite/NET.py
 pgmpy/readwrite/UAI.py
 pgmpy/readwrite/XMLBIF.py
-../docs/guides/simulations.md
