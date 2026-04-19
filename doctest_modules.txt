@@ -68,8 +68,8 @@ pgmpy/structure_score/log_likelihood_cond_gauss.py
 pgmpy/structure_score/log_likelihood_gauss.py
 pgmpy/utils/mathext.py
 pgmpy/utils/state_name.py
-docs/guides/simulations.md
 pgmpy/readwrite/BIF.py
 pgmpy/readwrite/NET.py
 pgmpy/readwrite/UAI.py
 pgmpy/readwrite/XMLBIF.py
+../docs/guides/simulations.md
