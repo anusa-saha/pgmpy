@@ -46,5 +46,5 @@ jobs:
           fi
           
       - name: Run code snnipets in documentations
-        run: pytest --doctest-modules  docs --xdoctest-glob="*.md" --xdoctest-glob="*.rst"
+        run: pytest --doctest-modules  docs --xdoctest-glob="*.md" --xdoctest-glob="*.rst" -v
 
