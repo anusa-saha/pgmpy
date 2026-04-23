@@ -44,7 +44,7 @@ jobs:
           else
             echo "No modules listed in doctest_modules.txt, skipping."
           fi
-          
-      - name: Run code snnipets in documentations
-        run: pytest --doctest-modules  docs --xdoctest-glob="*.md" --xdoctest-glob="*.rst"
+
+      - name: Run code snippets in documentations
+        run: pytest --doctest-modules  docs --xdoctest-glob="*.md" --xdoctest-glob="*.rst" -v
 

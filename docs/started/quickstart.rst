@@ -25,7 +25,7 @@ Learn a graph structure directly from data.
     >>> est.fit(dataset.data)
     PC(ci_test='chi_square', return_type='dag', variant='stable')
     >>> print(est.causal_graph_)
-    DAG with 11 nodes and 22 edges
+    DAG with 11 nodes and 24 edges
 
 .. _quickstart-parameter-estimation:
 
