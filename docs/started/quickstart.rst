@@ -50,7 +50,7 @@ Fit conditional distributions for a known graph structure.
     >>> bn_struct = DiscreteBayesianNetwork(model.edges())
     >>> bn_struct.fit(df, estimator=MaximumLikelihoodEstimator) # doctest: +ELLIPSIS
     <pgmpy.models.DiscreteBayesianNetwork.DiscreteBayesianNetwork object at 0x...>
-    >>> bn_struct.cpds[0] # doctest: +ELLIPSIS 
+    >>> bn_struct.cpds[0] # doctest: +ELLIPSIS
     <TabularCPD representing P(HYPOVOLEMIA:2) ...>
 
 .. _quickstart-probabilistic-inference:
@@ -168,9 +168,9 @@ Generate synthetic data from a model for testing and experimentation.
     >>> model = load_model("bnlearn/ecoli70")
     >>> data = model.simulate(int(1e3))
     >>> sorted(data.head()) # doctest: +NORMALIZE_WHITESPACE
-    ['aceB', 'asnA', 'atpD', 'atpG', 'b1191', 'b1583', 'b1963', 'cchB', 'cspA', 'cspG', 'dnaG', 
-    'dnaJ', 'dnaK', 'eutG', 'fixC', 'flgD', 'folK', 'ftsJ', 'gltA', 'hupB', 'ibpB', 'icdA', 'lacA', 
-    'lacY', 'lacZ', 'lpdA', 'mopB', 'nmpC', 'nuoM', 'pspA', 'pspB', 'sucA', 'sucD', 'tnaA', 'yaeM', 
+    ['aceB', 'asnA', 'atpD', 'atpG', 'b1191', 'b1583', 'b1963', 'cchB', 'cspA', 'cspG', 'dnaG',
+    'dnaJ', 'dnaK', 'eutG', 'fixC', 'flgD', 'folK', 'ftsJ', 'gltA', 'hupB', 'ibpB', 'icdA', 'lacA',
+    'lacY', 'lacZ', 'lpdA', 'mopB', 'nmpC', 'nuoM', 'pspA', 'pspB', 'sucA', 'sucD', 'tnaA', 'yaeM',
     'yceP', 'ycgX', 'yecO', 'yedE', 'yfaD', 'yfiA', 'ygbD', 'ygcE', 'yhdM', 'yheI', 'yjbO']
 
 
