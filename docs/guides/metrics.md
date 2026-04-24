@@ -21,14 +21,16 @@ against the observed data when no ground truth is available.
 All metrics follow the same pattern — instantiate and call:
 
 ```python
-from pgmpy.base import DAG
-from pgmpy.metrics import SHD
+>>> from pgmpy.base import DAG
+>>> from pgmpy.metrics import SHD
 
-true_graph = DAG([("A", "B"), ("B", "C")])
-estimated_graph = DAG([("B", "A"), ("B", "C")])
+>>> true_graph = DAG([("A", "B"), ("B", "C")])
+>>> estimated_graph = DAG([("B", "A"), ("B", "C")])
 
-metric = SHD()
-print(metric(true_causal_graph=true_graph, est_causal_graph=estimated_graph))
+>>> metric = SHD()
+>>> print(metric(true_causal_graph=true_graph, est_causal_graph=estimated_graph))
+1
+
 ```
 
 ## Supervised Metrics
@@ -50,10 +52,11 @@ method.
 hard-coding class names:
 
 ```python
-from pgmpy.metrics import get_metrics
+>>> from pgmpy.metrics import get_metrics
 
-supervised = get_metrics(requires_true_graph=True)
-unsupervised = get_metrics(requires_data=True)
+>>> supervised = get_metrics(requires_true_graph=True)
+>>> unsupervised = get_metrics(requires_data=True)
+
 ```
 
 ## See Also

@@ -27,17 +27,25 @@ The recommended entry point is `model.fit(...)`. Provide the graph, the data, an
 estimator class:
 
 ```python
-from pgmpy.example_models import load_model
-from pgmpy.estimators import MaximumLikelihoodEstimator
-from pgmpy.models import DiscreteBayesianNetwork
+>>> from pgmpy.example_models import load_model
+>>> from pgmpy.estimators import MaximumLikelihoodEstimator
+>>> from pgmpy.models import DiscreteBayesianNetwork
 
-reference = load_model("bnlearn/alarm")
-data = reference.simulate(n_samples=1000, seed=42, show_progress=False)
+>>> reference = load_model("bnlearn/alarm")
+>>> data = reference.simulate(n_samples=1000, seed=42, show_progress=False)
 
-model = DiscreteBayesianNetwork(reference.edges())
-model.fit(data, estimator=MaximumLikelihoodEstimator)
+>>> model = DiscreteBayesianNetwork(reference.edges())
+>>> model.fit(data, estimator=MaximumLikelihoodEstimator) # doctest: +ELLIPSIS
+<pgmpy.models.DiscreteBayesianNetwork.DiscreteBayesianNetwork object at 0x...>
+>>> print(model.get_cpds("HISTORY"))
++----------------+----------------------+---------------------+
+| LVFAILURE      | LVFAILURE(FALSE)     | LVFAILURE(TRUE)     |
++----------------+----------------------+---------------------+
+| HISTORY(FALSE) | 0.9947312961011591   | 0.17647058823529413 |
++----------------+----------------------+---------------------+
+| HISTORY(TRUE)  | 0.005268703898840885 | 0.8235294117647058  |
++----------------+----------------------+---------------------+
 
-print(model.get_cpds("HISTORY"))
 ```
 
 Switching the estimation method only requires changing the `estimator` argument.

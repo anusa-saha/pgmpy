@@ -35,7 +35,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install .[all]
-          
+
       - name: Run code snippets in documentations
         run: pytest --doctest-modules  docs --xdoctest-glob="*.md" --xdoctest-glob="*.rst" -v
 
@@ -47,5 +47,3 @@ jobs:
           else
             echo "No modules listed in doctest_modules.txt, skipping."
           fi
-          
-      
