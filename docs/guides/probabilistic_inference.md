@@ -122,8 +122,9 @@ also specialized support for inference on Dynamic Bayesian Networks.
 
 **MAP assignment:**
 ```python
->>> infer.map_query(variables=["HISTORY", "CO"], evidence={"CVP": "LOW"})
-{'HISTORY': 'FALSE', 'CO': 'HIGH'}
+>>> result = infer.map_query(variables=["HISTORY", "CO"], evidence={"CVP": "LOW"})
+>>> sorted(result.items())
+[('CO', 'HIGH'), ('HISTORY', 'FALSE')]
 
 ```
 
