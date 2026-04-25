@@ -75,7 +75,7 @@ conda install conda-forge::pgmpy
 >>> dag_fitted.get_cpds()[0] # doctest: +SKIP
 
 # Drop a column and predict using the learned model.
->>> evidence_df = alarm_df.drop(columns=["FIO2"], axis=1)
+>>> evidence_df = alarm_df.drop(columns=["FIO2"])
 >>> pred_FIO2 = dag_fitted.predict(evidence_df)
 
 ```
@@ -101,7 +101,7 @@ conda install conda-forge::pgmpy
 >>> dag_fitted.get_cpds()[0] # doctest: +SKIP
 
 # Drop a column and predict using the learned model.
->>> evidence_df = ecoli_df.drop(columns=["ftsJ"], axis=1)
+>>> evidence_df = ecoli_df.drop(columns=["ftsJ"])
 >>> pred_ftsJ = dag_fitted.predict(evidence_df)
 
 ```
