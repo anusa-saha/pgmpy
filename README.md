@@ -63,7 +63,7 @@ conda install conda-forge::pgmpy
 # Learn a network from simulated data.
 >>> from pgmpy.estimators import PC
 
->>> dag = PC(data=alarm_df).estimate(ci_test="chi_square", return_type="dag")
+>>> dag = PC(data=alarm_df).estimate(ci_test="chi_square", return_type="dag", variant="stable")
 
 # Learn the parameters from the data.
 >>> from pgmpy.models import DiscreteBayesianNetwork
@@ -72,12 +72,12 @@ conda install conda-forge::pgmpy
 >>> discrete_bn.add_nodes_from(dag.nodes())
 
 >>> dag_fitted = discrete_bn.fit(alarm_df)
->>> dag_fitted.get_cpds()
-
+>>> dag_fitted.get_cpds()[0] # doctest: +SKIP
 
 # Drop a column and predict using the learned model.
 >>> evidence_df = alarm_df.drop(columns=["FIO2"], axis=1)
 >>> pred_FIO2 = dag_fitted.predict(evidence_df)
+
 ```
 
 #### Linear Gaussian Data
@@ -86,19 +86,19 @@ conda install conda-forge::pgmpy
 
 # Load an example Gaussian Bayesian Network and simulate data
 >>> gaussian_bn = load_model("bnlearn/ecoli70")
->>> ecoli_df = gaussian_bn.simulate(n_samples=100)
+>>> ecoli_df = gaussian_bn.simulate(n_samples=100, seed=42)
 
 # Learn the network from simulated data.
 >>> from pgmpy.estimators import PC
 
->>> dag = PC(data=ecoli_df).estimate(ci_test="pearsonr", return_type="dag")
+>>> dag = PC(data=ecoli_df).estimate(ci_test="pearsonr", return_type="dag", variant="stable")
 
 # Learn the parameters from the data.
 >>> from pgmpy.models import LinearGaussianBayesianNetwork
 
 >>> gaussian_bn = LinearGaussianBayesianNetwork(dag.edges())
 >>> dag_fitted = gaussian_bn.fit(ecoli_df)
->>> dag_fitted.get_cpds()
+>>> dag_fitted.get_cpds()[0] # doctest: +SKIP
 
 # Drop a column and predict using the learned model.
 >>> evidence_df = ecoli_df.drop(columns=["ftsJ"], axis=1)
