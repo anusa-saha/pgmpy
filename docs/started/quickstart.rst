@@ -38,7 +38,7 @@ Fit conditional distributions for a known graph structure.
 
 .. code-block:: python
 
-    >>> from pgmpy.estimators import MaximumLikelihoodEstimator
+    >>> from pgmpy.parameter_estimator import DiscreteMLE
     >>> from pgmpy.models import DiscreteBayesianNetwork
     >>> from pgmpy.example_models import load_model
 
@@ -48,7 +48,8 @@ Fit conditional distributions for a known graph structure.
 
     # Create a network structure and fit data to it.
     >>> bn_struct = DiscreteBayesianNetwork(model.edges())
-    >>> bn_struct.fit(df, estimator=MaximumLikelihoodEstimator()) # doctest: +ELLIPSIS
+
+    >>> bn_struct.fit(df, estimator=DiscreteMLE()) # doctest: +ELLIPSIS
     <pgmpy.models.DiscreteBayesianNetwork.DiscreteBayesianNetwork object at 0x...>
     >>> bn_struct.cpds[0] # doctest: +ELLIPSIS
     <TabularCPD representing P(HYPOVOLEMIA:2) ...>
