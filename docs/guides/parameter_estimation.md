@@ -35,7 +35,7 @@ initialized estimator instance:
 >>> data = reference.simulate(n_samples=1000, seed=42, show_progress=False)
 
 >>> model = DiscreteBayesianNetwork(reference.edges())
->>> model.fit(data, estimator=MaximumLikelihoodEstimator) # doctest: +ELLIPSIS
+>>> model.fit(data, estimator=MaximumLikelihoodEstimator()) # doctest: +ELLIPSIS
 <pgmpy.models.DiscreteBayesianNetwork.DiscreteBayesianNetwork object at 0x...>
 >>> print(model.get_cpds("HISTORY"))
 +----------------+----------------------+---------------------+
