@@ -36,6 +36,8 @@ class RoysLargestRoot(_ResidualMixin, _BaseCITest):
         the upper bound uses :math:`a = p`, this approximation is not symmetric in
         :math:`X` and :math:`Y` when :math:`p \neq q`.
 
+    The effect size is the largest squared canonical correlation :math:`\hat{\rho}_1^2`.
+
     Parameters
     ----------
     data : pandas.DataFrame
@@ -54,6 +56,12 @@ class RoysLargestRoot(_ResidualMixin, _BaseCITest):
     p_value_ : float
         Upper-bound p-value for the test, computed via the F approximation. Set after
         calling the test.
+    effect_size_ : float
+        Largest squared canonical correlation. Set after calling the test.
+    estimator_x_ : sklearn-compatible estimator
+        The fitted estimator used for predicting X.
+    estimator_y_ : sklearn-compatible estimator
+        The fitted estimator used for predicting Y.
 
     References
     ----------
@@ -98,8 +106,8 @@ class RoysLargestRoot(_ResidualMixin, _BaseCITest):
             Upper-bound p-value via F-approximation.
         """
         # Step 1: Compute residuals of X and Y given Z.
-        res_x = self.get_residuals(X, Z)
-        res_y = self.get_residuals(Y, Z)
+        res_x, self.estimator_x_ = self.get_residuals(X, Z)
+        res_y, self.estimator_y_ = self.get_residuals(Y, Z)
 
         if isinstance(res_x, pd.Series):
             res_x = res_x.to_frame()
@@ -130,4 +138,4 @@ class RoysLargestRoot(_ResidualMixin, _BaseCITest):
         F_stat = (RLR_clipped / a) / ((1.0 - RLR_clipped) / n)
         p_value = 1.0 - stats.f.cdf(F_stat, df1, df2)
 
-        return _CITestResult(statistic=RLR, p_value=p_value)
+        return _CITestResult(statistic=RLR, p_value=p_value, effect_size=RLR)

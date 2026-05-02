@@ -43,6 +43,8 @@ class WilksLambda(_ResidualMixin, _BaseCITest):
 
     When :math:`s = 1` or :math:`s = 2` the approximation is exact [1].
 
+    The effect size is partial eta-squared: :math:`\eta^2 = 1 - W^{1/s}`.
+
     Parameters
     ----------
     data : pandas.DataFrame
@@ -61,6 +63,12 @@ class WilksLambda(_ResidualMixin, _BaseCITest):
     p_value_ : float
         The p-value for the test, computed via Rao's F-approximation. Set after calling
         the test.
+    effect_size_ : float
+        Partial eta-squared. Set after calling the test.
+    estimator_x_ : sklearn-compatible estimator
+        The fitted estimator used for predicting X.
+    estimator_y_ : sklearn-compatible estimator
+        The fitted estimator used for predicting Y.
 
     References
     ----------
@@ -106,8 +114,8 @@ class WilksLambda(_ResidualMixin, _BaseCITest):
             The p-value.
         """
         # Step 1: Compute residuals of X and Y given Z.
-        res_x = self.get_residuals(X, Z)
-        res_y = self.get_residuals(Y, Z)
+        res_x, self.estimator_x_ = self.get_residuals(X, Z)
+        res_y, self.estimator_y_ = self.get_residuals(Y, Z)
 
         if isinstance(res_x, pd.Series):
             res_x = res_x.to_frame()
@@ -143,4 +151,4 @@ class WilksLambda(_ResidualMixin, _BaseCITest):
         F_stat = ((1.0 - W_1g) * df2) / (W_1g * df1)
         p_value = 1.0 - stats.f.cdf(F_stat, df1, df2)
 
-        return _CITestResult(statistic=W, p_value=p_value)
+        return _CITestResult(statistic=W, p_value=p_value, effect_size=1.0 - W ** (1.0 / s))

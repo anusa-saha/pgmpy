@@ -32,6 +32,8 @@ class HotellingLawley(_ResidualMixin, _BaseCITest):
     Numerator degrees of freedom are :math:`df_1 = pq` and denominator degrees of freedom
     are :math:`df_2 = s(n - q - 1) + 2 = s(N - p - q - 2) + 2`.
 
+    The effect size is partial eta-squared: :math:`\eta^2 = \text{HLT} / (\text{HLT} + s)`.
+
     Parameters
     ----------
     data : pandas.DataFrame
@@ -50,6 +52,12 @@ class HotellingLawley(_ResidualMixin, _BaseCITest):
     p_value_ : float
         The p-value for the test, computed via Pillai's F-approximation. Set after calling
         the test.
+    effect_size_ : float
+        Partial eta-squared. Set after calling the test.
+    estimator_x_ : sklearn-compatible estimator
+        The fitted estimator used for predicting X.
+    estimator_y_ : sklearn-compatible estimator
+        The fitted estimator used for predicting Y.
 
     References
     ----------
@@ -93,8 +101,8 @@ class HotellingLawley(_ResidualMixin, _BaseCITest):
             The p-value.
         """
         # Step 1: Compute residuals of X and Y given Z.
-        res_x = self.get_residuals(X, Z)
-        res_y = self.get_residuals(Y, Z)
+        res_x, self.estimator_x_ = self.get_residuals(X, Z)
+        res_y, self.estimator_y_ = self.get_residuals(Y, Z)
 
         if isinstance(res_x, pd.Series):
             res_x = res_x.to_frame()
@@ -125,4 +133,4 @@ class HotellingLawley(_ResidualMixin, _BaseCITest):
         F_stat = (A_HLT / df1) / ((1.0 - A_HLT) / df2)
         p_value = 1.0 - stats.f.cdf(F_stat, df1, df2)
 
-        return _CITestResult(statistic=HLT, p_value=p_value)
+        return _CITestResult(statistic=HLT, p_value=p_value, effect_size=HLT / (HLT + s))

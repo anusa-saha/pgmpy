@@ -21,6 +21,8 @@ class GCM(_ResidualMixin, _BaseCITest):
     where :math:`n` is the sample size. Under the null hypothesis :math:`X \perp Y \mid Z`, this statistic is
     asymptotically standard normal.
 
+    The effect size is correlation coefficient between the residuals: :math:`\textit{cor}(r_X, r_Y)`.
+
     Parameters
     ----------
     data : pandas.DataFrame
@@ -35,6 +37,12 @@ class GCM(_ResidualMixin, _BaseCITest):
         The GCM test statistic. Set after calling the test.
     p_value_ : float
         The p-value for the test. Set after calling the test.
+    effect_size_ : float
+        Cohen's d. Set after calling the test.
+    estimator_x_ : sklearn-compatible estimator
+        The fitted estimator used for predicting X.
+    estimator_y_ : sklearn-compatible estimator
+        The fitted estimator used for predicting Y.
 
     References
     ----------
@@ -67,8 +75,10 @@ class GCM(_ResidualMixin, _BaseCITest):
         Returns the t-statistic and p-value.
         """
         # Step 1: Compute residuals of X and Y given Z.
-        res_x = np.asarray(self.get_residuals(X, Z))
-        res_y = np.asarray(self.get_residuals(Y, Z))
+        res_x, self.estimator_x_ = self.get_residuals(X, Z)
+        res_y, self.estimator_y_ = self.get_residuals(Y, Z)
+        res_x = np.asarray(res_x)
+        res_y = np.asarray(res_y)
 
         # Step 2: Compute the Generalised Covariance Measure.
         n = res_x.shape[0]
@@ -77,4 +87,7 @@ class GCM(_ResidualMixin, _BaseCITest):
         # Step 3: Compute p-value using standard normal distribution.
         p_value = 2 * stats.norm.sf(np.abs(t_stat))
 
-        return _CITestResult(statistic=t_stat, p_value=p_value)
+        # Step 4: Compute effect size as correlation coefficient between residuals.
+        effect_size = np.absolute(np.corrcoef(res_x, res_y, rowvar=False)[0, 1])
+
+        return _CITestResult(statistic=t_stat, p_value=p_value, effect_size=effect_size)
