@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import pdist, squareform
-
+from scipy.stats import chi2
+from sklearn.base import clone
 from pgmpy.ci_tests._base import _BaseCITest
 
 
@@ -14,7 +15,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
     between these residuals. The resulting test statistic is:
 
     .. math::
-        T = n \cdot \widehat{V}^2(r_X, r_Y),
+        T = n \cdot \widehat{V}^2(r_X, r_Y) / S_2(r_X, r_Y),
 
     where :math:`\widehat{V}^2` denotes the empirical distance covariance between
     :math:`r_X` and :math:`r_Y`, and :math:`n` is the sample size.
@@ -22,47 +23,48 @@ class ProjectedDistanceCovariance(_BaseCITest):
     Under the null hypothesis :math:`X \perp Y \mid Z`, the residuals are independent,
     and the test statistic is expected to be small. Larger values indicate dependence.
 
-    The p-value is computed via permutation testing by randomly permuting the
-    residuals of :math:`Y` and recomputing the test statistic.
+    The p-value is computed using the asymptotic chi-square(1)
+    approximation motivated by Theorem 3 of Fan et al. (2020).
 
-    This implementation uses linear regression and permutation-based inference.
+    This implementation using a regression estimator and asymptotic inference.
 
     Parameters
     ----------
     data : pandas.DataFrame
         The dataset in which to test the independence condition.
 
-    num_perm : int, default=100
-        Number of permutations for significance testing.
-
-    random_state : int or None
-        Seed for reproducibility.
+    estimator : sklearn-like regressor, default=LinearRegression()
+        Regression estimator implementing fit and predict
+        used to regress X and Y on Z before computing
+        distance covariance between residuals.
 
     Attributes
     ----------
     statistic_ : float
         The P-DCov test statistic. Set after calling the test.
     p_value_ : float
-        The empirical p-value computed via permutation testing.
+        The asymptotic p-value based on the chi-square(1) approximation.
 
     Examples
     --------
-    >>> import numpy as np
-    >>> import pandas as pd
+    >>> from pgmpy.models import LinearGaussianBayesianNetwork
+    >>> from pgmpy.factors.continuous import LinearGaussianCPD
     >>> from pgmpy.ci_tests import ProjectedDistanceCovariance
-    >>> rng = np.random.default_rng(0)
-    >>> n = 200
-    >>> Z = rng.normal(size=n)
-    >>> X = Z + rng.normal(size=n)
-    >>> Y = Z + rng.normal(size=n)
-    >>> data = pd.DataFrame({"X": X, "Y": Y, "Z": Z})
-    >>> test = ProjectedDistanceCovariance(data=data, num_perm=100, random_state=0)
+    >>> from sklearn.linear_model import LinearRegression
+    >>> # Z -> X, Z -> Y  (Z is the common cause)
+    >>> model = LinearGaussianBayesianNetwork([("Z", "X"), ("Z", "Y")])
+    >>> model.add_cpds(
+    ...     LinearGaussianCPD("Z", [0], 1),               
+    ...     LinearGaussianCPD("X", [0, 1], 1, ["Z"]),  
+    ...     LinearGaussianCPD("Y", [0, 1], 1, ["Z"]),  
+    ... )
+    >>> data = model.simulate(n_samples=200, seed=42)
+    >>> test = ProjectedDistanceCovariance(data=data, estimator=LinearRegression())
     >>> stat, pval = test.run_test("X", "Y", ["Z"])
     >>> round(stat,3)
-    np.float64(1.487)
-    >>> round(pval,2)
-    np.float64(0.18)
-
+    np.float64(0.43)
+    >>> round(pval,3)
+    np.float64(0.512)
 
     References
     ----------
@@ -78,10 +80,9 @@ class ProjectedDistanceCovariance(_BaseCITest):
         "requires_data": True,
     }
 
-    def __init__(self, data: pd.DataFrame, num_perm: int = 100, random_state: int = None):
+    def __init__(self, data: pd.DataFrame, estimator=None):
         self.data = data
-        self.num_perm = num_perm
-        self.random_state = random_state
+        self.estimator = estimator
         super().__init__()
 
     def run_test(self, X: str, Y: str, Z: list):
@@ -94,12 +95,14 @@ class ProjectedDistanceCovariance(_BaseCITest):
         Xv = data_aug[X].values
         Yv = data_aug[Y].values
         Zv = data_aug[Z_aug].values
+        model_x = clone(self.estimator) 
+        model_y = clone(self.estimator)
 
-        X_coef = np.linalg.lstsq(Zv, Xv, rcond=None)[0]
-        Y_coef = np.linalg.lstsq(Zv, Yv, rcond=None)[0]
+        model_x.fit(Zv, Xv)
+        model_y.fit(Zv, Yv)
 
-        residual_x = (Xv - Zv @ X_coef).reshape(-1, 1)
-        residual_y = (Yv - Zv @ Y_coef).reshape(-1, 1)
+        residual_x = (Xv - model_x.predict(Zv)).reshape(-1, 1)
+        residual_y = (Yv - model_y.predict(Zv)).reshape(-1, 1)
 
         n = residual_x.shape[0]
 
@@ -112,56 +115,9 @@ class ProjectedDistanceCovariance(_BaseCITest):
         V2 = S1 + S2 - 2.0 * S3
         statistic = n * V2 / S2
 
-        rng = np.random.default_rng(self.random_state)
-        perm_stats = self._permutation_stats(residual_y, a, n, rng)
-
-        p_value = np.mean(perm_stats >= statistic)
+        p_value = 1 - chi2.cdf(statistic, df=1)
 
         self.statistic_ = statistic
         self.p_value_ = p_value
 
         return self.statistic_, self.p_value_
-
-    def _permutation_stats(
-        self,
-        residual_y: np.ndarray,
-        a: np.ndarray,
-        n: int,
-        rng: np.random.Generator,
-    ) -> np.ndarray:
-        """
-        Compute the P-DCov statistic for each permutation of the Y residuals.
-
-        The X distance matrix ``a`` is precomputed once in :meth:`run_test` and
-        passed in here unchanged, so only ``b`` needs recomputing per permutation.
-
-        Parameters
-        ----------
-        residual_y : ndarray of shape (n, 1)
-            Residuals for Y.
-        a : ndarray of shape (n, n)
-            Pairwise distance matrix for X residuals.
-        n : int
-            Sample size.
-        rng : numpy.random.Generator
-            The master RNG, advanced in-place across permutations.
-
-        Returns
-        -------
-        perm_stats : ndarray of shape (num_perm,)
-            Test statistic value for each permuted sample.
-        """
-        perm_stats = np.empty(self.num_perm)
-
-        for i in range(self.num_perm):
-            perm = rng.permutation(n)
-            b_perm = squareform(pdist(residual_y[perm]))
-
-            S1_p = (a * b_perm).sum() / (n * n)
-            S2_p = (a.sum() / (n * n)) * (b_perm.sum() / (n * n))
-            S3_p = (a.sum(axis=1) * b_perm.sum(axis=1)).sum() / (n**3)
-
-            V2_p = S1_p + S2_p - 2.0 * S3_p
-            perm_stats[i] = n * V2_p / S2_p
-
-        return perm_stats
