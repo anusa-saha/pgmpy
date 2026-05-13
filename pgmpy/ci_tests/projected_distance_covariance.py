@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import chi2
 from sklearn.base import clone
+
 from pgmpy.ci_tests._base import _BaseCITest
 
 
@@ -54,9 +55,9 @@ class ProjectedDistanceCovariance(_BaseCITest):
     >>> # Z -> X, Z -> Y  (Z is the common cause)
     >>> model = LinearGaussianBayesianNetwork([("Z", "X"), ("Z", "Y")])
     >>> model.add_cpds(
-    ...     LinearGaussianCPD("Z", [0], 1),               
-    ...     LinearGaussianCPD("X", [0, 1], 1, ["Z"]),  
-    ...     LinearGaussianCPD("Y", [0, 1], 1, ["Z"]),  
+    ...     LinearGaussianCPD("Z", [0], 1),
+    ...     LinearGaussianCPD("X", [0, 1], 1, ["Z"]),
+    ...     LinearGaussianCPD("Y", [0, 1], 1, ["Z"]),
     ... )
     >>> data = model.simulate(n_samples=200, seed=42)
     >>> test = ProjectedDistanceCovariance(data=data, estimator=LinearRegression())
@@ -95,7 +96,7 @@ class ProjectedDistanceCovariance(_BaseCITest):
         Xv = data_aug[X].values
         Yv = data_aug[Y].values
         Zv = data_aug[Z_aug].values
-        model_x = clone(self.estimator) 
+        model_x = clone(self.estimator)
         model_y = clone(self.estimator)
 
         model_x.fit(Zv, Xv)

@@ -3,13 +3,13 @@ import unittest
 
 import numpy as np
 from skbase.utils.dependencies import _check_soft_dependencies
+from sklearn.linear_model import LinearRegression
 
 from pgmpy import config
 from pgmpy.ci_tests import ProjectedDistanceCovariance
 from pgmpy.factors.continuous import LinearGaussianCPD
 from pgmpy.factors.hybrid import FunctionalCPD
 from pgmpy.models import FunctionalBayesianNetwork, LinearGaussianBayesianNetwork
-from sklearn.linear_model import LinearRegression
 
 
 class TestProjectedDistanceCovariance(unittest.TestCase):
