@@ -125,7 +125,7 @@ Estimate a causal effect from data once you have a causal graph.
 
     >>> model = load_model("bnlearn/sachs")
     >>> infer = CausalInference(model)
-    >>> print(infer.query(variables=["Akt"], do={"PKC": "LOW"})) 
+    >>> print(infer.query(variables=["Akt"], do={"PKC": "LOW"}))
     +-----------+------------+
     | Akt       |   phi(Akt) |
     +===========+============+

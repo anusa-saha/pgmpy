@@ -32,7 +32,7 @@ All discovery algorithms follow the same pattern — instantiate, fit, and read 
 >>> est.fit(data)
 PC(ci_test='chi_square', return_type='dag', show_progress=False,
    variant='stable')
->>> print(sorted(est.causal_graph_.nodes())) 
+>>> print(sorted(est.causal_graph_.nodes()))
 ['akt', 'erk', 'jnk', 'mek', 'p38', 'pip2', 'pip3', 'pka', 'pkc', 'plc', 'raf']
 >>> print(sorted(est.adjacency_matrix_.head()))
 ['akt', 'erk', 'jnk', 'mek', 'p38', 'pip2', 'pip3', 'pka', 'pkc', 'plc', 'raf']

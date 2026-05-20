@@ -91,7 +91,7 @@ whether it satisfies the graphical criterion before proceeding to estimation:
 ... )
 
 >>> is_valid = Adjustment(variant="minimal").validate(dag)
->>> print(is_valid)  
+>>> print(is_valid)
 True
 
 ```
