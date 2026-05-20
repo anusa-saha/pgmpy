@@ -62,9 +62,9 @@ Both constraint-based and score-based algorithms accept an `expert_knowledge` pa
 >>> data = dataset.data
 
 >>> expert = ExpertKnowledge(
-...     required_edges=[("PKC", "PKA")],
-...     forbidden_edges=[("PKA", "PKC")],
-...     temporal_order=[["PKC", "Raf"], ["Mek", "PKA"]],
+...     required_edges=[("pkc", "pka")],
+...     forbidden_edges=[("pka", "pkc")],
+...     temporal_order=[["pkc", "raf"], ["mek", "pka"]],
 ... )
 
 >>> est = HillClimbSearch(
@@ -74,7 +74,7 @@ Both constraint-based and score-based algorithms accept an `expert_knowledge` pa
 HillClimbSearch(expert_knowledge=Expert Knowledge: 1 required edges, 4 forbidden edges, temporal order on 4 nodes, and 0 search space edges,
                 scoring_method='bic-d', show_progress=False)
 >>> print(sorted(est.causal_graph_.nodes()))
-['PKA', 'PKC', 'akt', 'erk', 'jnk', 'mek', 'p38', 'pip2', 'pip3', 'pka', 'pkc', 'plc', 'raf']
+['akt', 'erk', 'jnk', 'mek', 'p38', 'pip2', 'pip3', 'pka', 'pkc', 'plc', 'raf']
 
 ```
 
