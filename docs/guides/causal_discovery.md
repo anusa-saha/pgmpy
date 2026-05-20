@@ -32,7 +32,8 @@ All discovery algorithms follow the same pattern — instantiate, fit, and read 
 >>> est.fit(data)
 PC(ci_test='chi_square', return_type='dag', show_progress=False,
    variant='stable')
->>> print(sorted(est.causal_graph_.edges())) # doctest: +SKIP
+>>> print(sorted(est.causal_graph_.nodes())) 
+['akt', 'erk', 'jnk', 'mek', 'p38', 'pip2', 'pip3', 'pka', 'pkc', 'plc', 'raf']
 >>> print(sorted(est.adjacency_matrix_.head()))
 ['akt', 'erk', 'jnk', 'mek', 'p38', 'pip2', 'pip3', 'pka', 'pkc', 'plc', 'raf']
 
@@ -72,7 +73,9 @@ Both constraint-based and score-based algorithms accept an `expert_knowledge` pa
 >>> est.fit(data) # doctest: +NORMALIZE_WHITESPACE
 HillClimbSearch(expert_knowledge=Expert Knowledge: 1 required edges, 4 forbidden edges, temporal order on 4 nodes, and 0 search space edges,
                 scoring_method='bic-d', show_progress=False)
->>> print(est.causal_graph_.edges()) # doctest: +SKIP
+>>> print(sorted(est.causal_graph_.nodes()))
+['PKA', 'PKC', 'akt', 'erk', 'jnk', 'mek', 'p38', 'pip2', 'pip3', 'pka', 'pkc', 'plc', 'raf']
+
 ```
 
 ## Scoring and Evaluation
@@ -87,7 +90,7 @@ All discovery estimators expose a unified `score(...)` method for comparing resu
 >>> dataset = load_dataset("sachs_discrete")
 >>> data = dataset.data
 
->>> hc = HillClimbSearch(scoring_method=BIC(data), show_progress=False, return_type="dag").fit(data)
+>>> hc = HillClimbSearch(scoring_method="bic-d", show_progress=False, return_type="dag").fit(data)
 >>> pc = PC(ci_test="chi_square", return_type="dag", show_progress=False).fit(data)
 
 # Score against data (no ground truth needed)

@@ -27,8 +27,8 @@ All metrics follow the same pattern — instantiate and call:
 >>> true_graph = DAG([("A", "B"), ("B", "C")])
 >>> estimated_graph = DAG([("B", "A"), ("B", "C")])
 
->>> metric = SHD()
->>> print(metric(true_causal_graph=true_graph, est_causal_graph=estimated_graph))
+>>> shd = SHD()
+>>> print(shd(true_causal_graph=true_graph, est_causal_graph=estimated_graph))
 1
 
 ```
@@ -54,8 +54,10 @@ hard-coding class names:
 ```python
 >>> from pgmpy.metrics import get_metrics
 
->>> supervised = get_metrics(requires_true_graph=True)
->>> unsupervised = get_metrics(requires_data=True)
+>>> get_metrics(requires_true_graph=True)
+[<class 'pgmpy.metrics.adjacency_cm.AdjacencyConfusionMatrix'>, <class 'pgmpy.metrics.orientation_cm.OrientationConfusionMatrix'>, <class 'pgmpy.metrics.shd.SHD'>]
+>>> get_metrics(requires_data=True)
+[<class 'pgmpy.metrics.correlation_score.CorrelationScore'>, <class 'pgmpy.metrics.fisher_c.FisherC'>, <class 'pgmpy.metrics.implied_cis.ImpliedCIs'>, <class 'pgmpy.metrics.structure_score.StructureScore'>]
 
 ```
 

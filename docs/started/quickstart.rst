@@ -51,7 +51,7 @@ Fit conditional distributions for a known graph structure.
 
     >>> bn_struct.fit(df, estimator=DiscreteMLE()) # doctest: +ELLIPSIS
     <pgmpy.models.DiscreteBayesianNetwork.DiscreteBayesianNetwork object at 0x...>
-    >>> bn_struct.cpds[0] # doctest: +ELLIPSIS
+    >>> bn_struct.get_cpds()[0] # doctest: +ELLIPSIS
     <TabularCPD representing P(HYPOVOLEMIA:2) ...>
 
 .. _quickstart-probabilistic-inference:
@@ -103,6 +103,8 @@ Check whether a causal effect is identifiable from the graph alone.
     ...     roles={"exposures": "X", "outcomes": "Y"},
     ... )
     >>> identified_graph, is_identified = Adjustment(variant="minimal").identify(dag)
+    >>> is_identified
+    True
     >>> identified_graph.get_role("adjustment")
     ['Z']
 
@@ -123,8 +125,16 @@ Estimate a causal effect from data once you have a causal graph.
 
     >>> model = load_model("bnlearn/sachs")
     >>> infer = CausalInference(model)
-    >>> infer.query(variables=["Akt"], do={"PKC": "LOW"}) # doctest: +ELLIPSIS
-    <DiscreteFactor representing phi(Akt:3) at 0x...>
+    >>> print(infer.query(variables=["Akt"], do={"PKC": "LOW"})) 
+    +-----------+------------+
+    | Akt       |   phi(Akt) |
+    +===========+============+
+    | Akt(LOW)  |     0.5334 |
+    +-----------+------------+
+    | Akt(AVG)  |     0.2839 |
+    +-----------+------------+
+    | Akt(HIGH) |     0.1827 |
+    +-----------+------------+
 
 
 .. _quickstart-example-data-models:
@@ -144,13 +154,17 @@ Discover built-in datasets and example models.
     >>> print(list_datasets(is_discrete=True, has_ground_truth=True)[:3])
     ['sachs_discrete']
     >>> dataset = load_dataset("sachs_discrete")
-    >>> print(dataset.name, dataset.data.shape)
-    sachs_discrete (5400, 11)
+    >>> print(dataset.name)
+    sachs_discrete
+    >>> print(dataset.data.shape)
+    (5400, 11)
     >>> print(list_models()[:3])
     ['bnlearn/alarm', 'bnlearn/andes', 'bnlearn/arth150']
     >>> model = load_model("bnlearn/alarm")
-    >>> print(len(model.nodes()), len(model.edges()))
-    37 46
+    >>> print(len(model.nodes()))
+    37
+    >>> print(len(model.edges()))
+    46
 
 
 .. _quickstart-simulations:
@@ -168,12 +182,8 @@ Generate synthetic data from a model for testing and experimentation.
 
     >>> model = load_model("bnlearn/ecoli70")
     >>> data = model.simulate(int(1e3))
-    >>> sorted(data.head()) # doctest: +NORMALIZE_WHITESPACE
-    ['aceB', 'asnA', 'atpD', 'atpG', 'b1191', 'b1583', 'b1963', 'cchB', 'cspA', 'cspG', 'dnaG',
-    'dnaJ', 'dnaK', 'eutG', 'fixC', 'flgD', 'folK', 'ftsJ', 'gltA', 'hupB', 'ibpB', 'icdA', 'lacA',
-    'lacY', 'lacZ', 'lpdA', 'mopB', 'nmpC', 'nuoM', 'pspA', 'pspB', 'sucA', 'sucD', 'tnaA', 'yaeM',
-    'yceP', 'ycgX', 'yecO', 'yedE', 'yfaD', 'yfiA', 'ygbD', 'ygcE', 'yhdM', 'yheI', 'yjbO']
-
+    >>> data.shape
+    (1000, 46)
 
 .. _quickstart-extensibility:
 

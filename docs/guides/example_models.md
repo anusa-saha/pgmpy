@@ -34,8 +34,10 @@ The example-model API mirrors the dataset API — discover, then load:
 
 >>> print(model)
 DiscreteBayesianNetwork named 'unknown' with 37 nodes and 46 edges
->>> print(len(model.nodes()), len(model.edges()))
-37 46
+>>> print(len(model.nodes()))
+37
+>>> print(len(model.edges()))
+46
 
 ```
 

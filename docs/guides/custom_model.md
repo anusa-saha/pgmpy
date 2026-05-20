@@ -31,6 +31,8 @@ The common pattern is: choose a model class, define the structure, add CPDs, and
 >>> model.add_cpds(cpd_a, cpd_b, cpd_c)
 >>> print(model.check_model())
 True
+>>> model.get_cpds()[0] # doctest: +ELLIPSIS
+<TabularCPD representing P(A:2) at 0x...>
 
 ```
 
@@ -59,6 +61,8 @@ a continuous model:
 >>> model.add_cpds(cpd_x, cpd_z, cpd_y)
 >>> print(model.check_model())
 True
+>>> model.get_cpds()[0] # doctest: +ELLIPSIS
+<LinearGaussianCPD: P(X) = N(0.0; 1.0) at 0x...
 
 ```
 

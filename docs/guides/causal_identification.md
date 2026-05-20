@@ -57,13 +57,17 @@ variance-optimal sets, or enumerating all valid sets:
 
 # Minimal adjustment set
 >>> identified_min, ok_min = Adjustment(variant="minimal").identify(dag)
->>> print("Minimal:", identified_min.get_role("adjustment"), ok_min)
-Minimal: ['Z'] True
+>>> print("Minimal:", identified_min.get_role("adjustment"))
+Minimal: ['Z']
+>>> print(ok_min)
+True
 
 # All valid adjustment sets
 >>> identified_all, ok_all = Adjustment(variant="all").identify(dag)
->>> print("All:", [g.get_role("adjustment") for g in identified_all], ok_all)
-All: [['Z']] True
+>>> print("All:", [g.get_role("adjustment") for g in identified_all])
+All: [['Z']]
+>>> print(ok_all)
+True
 
 ```
 
@@ -87,7 +91,7 @@ whether it satisfies the graphical criterion before proceeding to estimation:
 ... )
 
 >>> is_valid = Adjustment(variant="minimal").validate(dag)
->>> print(is_valid)  # True
+>>> print(is_valid)  
 True
 
 ```

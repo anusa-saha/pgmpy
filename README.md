@@ -75,7 +75,7 @@ conda install conda-forge::pgmpy
 >>> dag_fitted.get_cpds()[0] # doctest: +SKIP
 
 # Drop a column and predict using the learned model.
->>> evidence_df = alarm_df.drop(columns=["FIO2"])
+>>> evidence_df = alarm_df.drop(columns=["FIO2"], axis=1)
 >>> pred_FIO2 = dag_fitted.predict(evidence_df)
 
 ```
@@ -98,7 +98,8 @@ conda install conda-forge::pgmpy
 
 >>> gaussian_bn = LinearGaussianBayesianNetwork(dag.edges())
 >>> dag_fitted = gaussian_bn.fit(ecoli_df)
->>> dag_fitted.get_cpds()[0] # doctest: +SKIP
+>>> dag_fitted.get_cpds()[0] # doctest: +ELLIPSIS
+<LinearGaussianCPD: P(...) = N(...; ...) at 0x...
 
 # Drop a column and predict using the learned model.
 >>> evidence_df = ecoli_df.drop(columns=["ftsJ"])
