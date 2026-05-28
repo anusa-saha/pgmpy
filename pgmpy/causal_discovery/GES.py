@@ -330,9 +330,9 @@ class GES(_BaseCausalDiscovery):
                     new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
                     old_parents = ordered_tuple(na_vuT | parents_v, current_model)
 
-                    if self.variant == "fges" and self.max_parents is not None and len(new_parents) > self.max_parents:
+                    committed_parents = parents_v | {u}
+                    if self.variant == "fges" and self.max_parents is not None and len(committed_parents) > self.max_parents:
                         continue
-
                     score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
                     valid_insert_ops.append((score_delta, u, v, T))
 
@@ -511,6 +511,9 @@ class GES(_BaseCausalDiscovery):
                         old_score = score_fn(v, ordered_tuple(parents_v | C, current_model)) + score_fn(
                             u, ordered_tuple(parents_u | (C & na_vu) | {v}, current_model)
                         )
+                        committed_parents_v = parents_v | C | {u}
+                        if self.variant == "fges" and self.max_parents is not None and len(committed_parents_v) > self.max_parents:
+                            continue
                         score_delta = new_score - old_score
                         valid_turn_ops.append((score_delta, u, v, C))
 
@@ -548,6 +551,9 @@ class GES(_BaseCausalDiscovery):
                                     s[-1] = True
 
                     if cond_1 and cond_2:
+                        committed_parents_v = parents_v | C | {u}   
+                        if self.variant == "fges" and self.max_parents is not None and len(committed_parents_v) > self.max_parents:
+                            continue
                         new_score = score_fn(v, ordered_tuple(C | parents_v | {u}, current_model)) + score_fn(
                             u, ordered_tuple(parents_u - {v}, current_model)
                         )
