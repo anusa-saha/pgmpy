@@ -1,8 +1,9 @@
 import os
+from collections import deque
 from collections.abc import Hashable, Iterable
 from itertools import combinations
 from typing import Any
-from collections import deque
+
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -28,13 +29,13 @@ class GES(_BaseCausalDiscovery):
         2. Backward phase: Edges are removed to improve the model score.
         3. Edge turning phase: Edge orientations are flipped to improve the score.
 
-    This implementation also supports FGES-style optimization variant. The FGES variant introduces: 
-        - parallel candidate-score evaluation   
-        - locality-aware update and rescanning strategies   
-        - bounded parent-set search 
-        - reduced graph materialization overhead. 
+    This implementation also supports FGES-style optimization variant. The FGES variant introduces:
+        - parallel candidate-score evaluation
+        - locality-aware update and rescanning strategies
+        - bounded parent-set search
+        - reduced graph materialization overhead.
 
-    The implementation preserves the same legality checks, CPDAG semantics, 
+    The implementation preserves the same legality checks, CPDAG semantics,
     and graph operators used in standard GES while improving scalability on larger graphs.
 
     Parameters
@@ -62,19 +63,19 @@ class GES(_BaseCausalDiscovery):
         (edge addition, removal, or flipping). Operations with smaller
         improvements are not performed.
 
-    variant : {"ges", "fges"}, default="ges" 
+    variant : {"ges", "fges"}, default="ges"
         Selects the search strategy variant. Options are:
 
-        - "ges":  Standard Greedy Equivalence Search. 
-        - "fges": Locality-aware FGES-style optimization variant 
-            with optional parallelized candidate scoring. 
+        - "ges":  Standard Greedy Equivalence Search.
+        - "fges": Locality-aware FGES-style optimization variant
+            with optional parallelized candidate scoring.
 
-    n_jobs : int, default=1 
-        Number of worker threads used for parallel  
-        candidate-score evaluation in the FGES variant. 
-        
-    max_parents : int or None, default=None 
-        Optional upper bound on the number of parents 
+    n_jobs : int, default=1
+        Number of worker threads used for parallel
+        candidate-score evaluation in the FGES variant.
+
+    max_parents : int or None, default=None
+        Optional upper bound on the number of parents
         allowed for a node during FGES-style search.
 
 
@@ -91,7 +92,7 @@ class GES(_BaseCausalDiscovery):
 
     feature_names_in_ : np.ndarray
         The feature names in the data used to learn the causal graph.
-    
+
     Examples
     --------
     Simulate some data to use for causal discovery:
@@ -349,7 +350,7 @@ class GES(_BaseCausalDiscovery):
                 local_nodes = set(active_nodes)
                 for node in active_nodes:
                     local_nodes.update(current_model.all_neighbors(node))
-                for u, v in combinations(sorted(current_model.nodes()),2):
+                for u, v in combinations(sorted(current_model.nodes()), 2):
                     if u not in local_nodes and v not in local_nodes:
                         continue
 
@@ -357,17 +358,18 @@ class GES(_BaseCausalDiscovery):
                         potential_edges.append((u, v))
                         potential_edges.append((v, u))
             else:
-                for u, v in combinations(sorted(current_model.nodes()),2):
+                for u, v in combinations(sorted(current_model.nodes()), 2):
                     if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
                         potential_edges.append((u, v))
                         potential_edges.append((v, u))
-
 
             score_deltas = np.zeros(len(potential_edges))
             insertion_ops = []
 
             if use_parallel:
-                results = Parallel(n_jobs=n_workers, backend="threading")(delayed(_score_insert)(u, v) for u, v in potential_edges)
+                results = Parallel(n_jobs=n_workers, backend="threading")(
+                    delayed(_score_insert)(u, v) for u, v in potential_edges
+                )
                 for idx, (sd, op) in enumerate(results):
                     score_deltas[idx] = sd
                     insertion_ops.append(op)
@@ -445,7 +447,9 @@ class GES(_BaseCausalDiscovery):
             deletion_ops = []
 
             if use_parallel:
-                results = Parallel(n_jobs=n_workers, backend="threading")(delayed(_score_delete)(u, v) for u, v in potential_removals)
+                results = Parallel(n_jobs=n_workers, backend="threading")(
+                    delayed(_score_delete)(u, v) for u, v in potential_removals
+                )
                 for idx, (sd, op) in enumerate(results):
                     score_deltas[idx] = sd
                     deletion_ops.append(op)
@@ -512,7 +516,7 @@ class GES(_BaseCausalDiscovery):
             else:
                 T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
                 subsets = deque([[*T, False] for T in powerset(list(T0))])
-                
+
                 parents_v = current_model.directed_parents(v)
                 parents_u = current_model.directed_parents(u)
 
@@ -576,7 +580,9 @@ class GES(_BaseCausalDiscovery):
             turn_ops = []
 
             if use_parallel:
-                results = Parallel(n_jobs=n_workers, backend="threading")(delayed(_score_turn)(u, v) for u, v in potential_turns)
+                results = Parallel(n_jobs=n_workers, backend="threading")(
+                    delayed(_score_turn)(u, v) for u, v in potential_turns
+                )
                 for idx, (sd, op) in enumerate(results):
                     score_deltas[idx] = sd
                     turn_ops.append(op)
