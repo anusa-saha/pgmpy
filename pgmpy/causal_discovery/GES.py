@@ -490,7 +490,7 @@ class GES(_BaseCausalDiscovery):
                     C0 = current_model.undirected_neighbors(v) - {u}
                     subsets = deque([[*set(C), False] for C in powerset(list(C0)) if len(set(C) & non_adjacents) > 0])
 
-                    subgraph = current_model.subgraph(current_model.chain_component(v))
+                    subgraph = nx.DiGraph(current_model.subgraph(current_model.chain_component(v)))
                     while subsets:
                         entry = subsets.popleft()
                         C = set(entry[:-1])
