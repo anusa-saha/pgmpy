@@ -428,6 +428,7 @@ class GES(_BaseCausalDiscovery):
             return best_op[0], best_op
 
         # Step 3: Backward phase. Iteratively remove edges till score stops improving.
+        active_nodes = set(self.variables_)
         while True:
             all_removals = self._legal_edge_deletions(current_model)
 
@@ -562,6 +563,7 @@ class GES(_BaseCausalDiscovery):
             return best_op[0], best_op
 
         # Step 4: Turning phase. Iteratively reorient edges till score stops improving.
+        active_nodes = set(self.variables_)
         while True:
             potential_turns = []
             if self.variant == "fges":
