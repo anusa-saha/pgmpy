@@ -330,8 +330,12 @@ class GES(_BaseCausalDiscovery):
                     new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
                     old_parents = ordered_tuple(na_vuT | parents_v, current_model)
 
-                    committed_parents = parents_v | {u}
-                    if self.variant == "fges" and self.max_parents is not None and len(committed_parents) > self.max_parents:
+                    committed_parents = na_vuT | parents_v | {u}
+                    if (
+                        self.variant == "fges"
+                        and self.max_parents is not None
+                        and len(committed_parents) > self.max_parents
+                    ):
                         continue
                     score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
                     valid_insert_ops.append((score_delta, u, v, T))
@@ -342,26 +346,13 @@ class GES(_BaseCausalDiscovery):
             return best_op[0], best_op
 
         # Step 2: Forward phase. Iteratively add edges till score stops improving.
-        active_nodes = set(self.variables_)
         while True:
             potential_edges = []
 
-            if self.variant == "fges":
-                local_nodes = set(active_nodes)
-                for node in active_nodes:
-                    local_nodes.update(current_model.all_neighbors(node))
-                for u, v in combinations(sorted(current_model.nodes()), 2):
-                    if u not in local_nodes and v not in local_nodes:
-                        continue
-
-                    if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
-                        potential_edges.append((u, v))
-                        potential_edges.append((v, u))
-            else:
-                for u, v in combinations(sorted(current_model.nodes()), 2):
-                    if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
-                        potential_edges.append((u, v))
-                        potential_edges.append((v, u))
+            for u, v in combinations(sorted(current_model.nodes()), 2):
+                if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
+                    potential_edges.append((u, v))
+                    potential_edges.append((v, u))
 
             score_deltas = np.zeros(len(potential_edges))
             insertion_ops = []
@@ -388,14 +379,6 @@ class GES(_BaseCausalDiscovery):
 
             current_model = self.insert(op_to_add[1], op_to_add[2], op_to_add[3], current_model)
             current_model = current_model.to_cpdag()
-
-            # Locality refresh — next iteration only rescans affected nodes
-            if self.variant == "fges":
-                changed_nodes = {op_to_add[1], op_to_add[2]}
-                local_neighbors = set()
-                for node in changed_nodes:
-                    local_neighbors.update(current_model.all_neighbors(node))
-                active_nodes = changed_nodes | local_neighbors
 
         def _score_delete(u, v):
             if not current_model.has_edge(u, v):
@@ -428,21 +411,10 @@ class GES(_BaseCausalDiscovery):
             return best_op[0], best_op
 
         # Step 3: Backward phase. Iteratively remove edges till score stops improving.
-        active_nodes = set(self.variables_)
         while True:
             all_removals = self._legal_edge_deletions(current_model)
 
-            if self.variant == "fges":
-                local_nodes = set(active_nodes)
-                for node in active_nodes:
-                    local_nodes.update(current_model.all_neighbors(node))
-                potential_removals = []
-                for u, v in all_removals:
-                    if u not in local_nodes and v not in local_nodes:
-                        continue
-                    potential_removals.append((u, v))
-            else:
-                potential_removals = all_removals
+            potential_removals = all_removals
 
             score_deltas = np.zeros(len(potential_removals))
             deletion_ops = []
@@ -469,14 +441,6 @@ class GES(_BaseCausalDiscovery):
 
             current_model = self.delete(op_to_delete[1], op_to_delete[2], op_to_delete[3], current_model)
             current_model = current_model.to_cpdag()
-
-            # Locality refresh
-            if self.variant == "fges":
-                changed_nodes = {op_to_delete[1], op_to_delete[2]}
-                local_neighbors = set()
-                for node in changed_nodes:
-                    local_neighbors.update(current_model.all_neighbors(node))
-                active_nodes = changed_nodes | local_neighbors
 
         def _score_turn(u, v):
             valid_turn_ops = []
@@ -512,7 +476,11 @@ class GES(_BaseCausalDiscovery):
                             u, ordered_tuple(parents_u | (C & na_vu) | {v}, current_model)
                         )
                         committed_parents_v = parents_v | C | {u}
-                        if self.variant == "fges" and self.max_parents is not None and len(committed_parents_v) > self.max_parents:
+                        if (
+                            self.variant == "fges"
+                            and self.max_parents is not None
+                            and len(committed_parents_v) > self.max_parents
+                        ):
                             continue
                         score_delta = new_score - old_score
                         valid_turn_ops.append((score_delta, u, v, C))
@@ -551,8 +519,12 @@ class GES(_BaseCausalDiscovery):
                                     s[-1] = True
 
                     if cond_1 and cond_2:
-                        committed_parents_v = parents_v | C | {u}   
-                        if self.variant == "fges" and self.max_parents is not None and len(committed_parents_v) > self.max_parents:
+                        committed_parents_v = parents_v | C | {u}
+                        if (
+                            self.variant == "fges"
+                            and self.max_parents is not None
+                            and len(committed_parents_v) > self.max_parents
+                        ):
                             continue
                         new_score = score_fn(v, ordered_tuple(C | parents_v | {u}, current_model)) + score_fn(
                             u, ordered_tuple(parents_u - {v}, current_model)
@@ -569,19 +541,9 @@ class GES(_BaseCausalDiscovery):
             return best_op[0], best_op
 
         # Step 4: Turning phase. Iteratively reorient edges till score stops improving.
-        active_nodes = set(self.variables_)
         while True:
             potential_turns = []
-            if self.variant == "fges":
-                local_nodes = set(active_nodes)
-                for node in active_nodes:
-                    local_nodes.update(current_model.all_neighbors(node))
-            else:
-                local_nodes = None
             for u, v in sorted(current_model.edges()):
-                if self.variant == "fges":
-                    if u not in local_nodes and v not in local_nodes:
-                        continue
                 potential_turns.append((v, u))
 
             score_deltas = np.zeros(len(potential_turns))
@@ -609,14 +571,6 @@ class GES(_BaseCausalDiscovery):
 
             current_model = self.turn(op_to_turn[1], op_to_turn[2], op_to_turn[3], current_model)
             current_model = current_model.to_cpdag()
-
-            # Locality refresh
-            if self.variant == "fges":
-                changed_nodes = {op_to_turn[1], op_to_turn[2]}
-                local_neighbors = set()
-                for node in changed_nodes:
-                    local_neighbors.update(current_model.all_neighbors(node))
-                active_nodes = changed_nodes | local_neighbors
 
         # Step 5: Store results
         current_model = current_model.to_cpdag()
