@@ -15,7 +15,7 @@ from pgmpy.structure_score import BaseStructureScore, get_scoring_method
 from pgmpy.utils.mathext import powerset
 
 
-class GES(_BaseCausalDiscovery):
+class FGES(_BaseCausalDiscovery):
     """
     Score-based causal discovery using Greedy Equivalence Search (GES).
 
@@ -32,7 +32,7 @@ class GES(_BaseCausalDiscovery):
     This implementation also supports FGES-style optimization variant. The FGES variant introduces:
         - parallel candidate-score evaluation
         - locality-aware update and rescanning strategies
-        - bounded parent-set search
+        - bounded neighbor-set search
         - reduced graph materialization overhead.
 
     The implementation preserves the same legality checks, CPDAG semantics,
@@ -74,10 +74,12 @@ class GES(_BaseCausalDiscovery):
         Number of worker threads used for parallel
         candidate-score evaluation in the FGES variant.
 
-    max_parents : int or None, default=None
-        Optional upper bound on the number of parents
-        allowed for a node during FGES-style search.
-
+    max_neighbors : int or None, default=None
+        Optional upper bound on the number of adjacent nodes (degree) allowed
+        for any node. Candidate edge additions that would cause either
+        endpoint's degree to exceed this threshold are discarded during the
+        forward phase. Deletions and turns never introduce new adjacencies and
+        are therefore unaffected by this parameter.
 
     Attributes
     ----------
@@ -116,9 +118,9 @@ class GES(_BaseCausalDiscovery):
 
     Use the locality-aware parallelized FGES algorithm to learn the causal structure from data.
     >>> from pgmpy.causal_discovery import GES
-    >>> ges = GES(scoring_method="bic-d", variant="fges", n_jobs=2, max_parents=2)
+    >>> ges = GES(scoring_method="bic-d", variant="fges", n_jobs=2, max_neighbors=4)
     >>> ges.fit(df)
-    GES(max_parents=2, n_jobs=2, scoring_method='bic-d', variant='fges')
+    GES(max_neighbors=4, n_jobs=2, scoring_method='bic-d', variant='fges')
     >>> ges.causal_graph_  # doctest: +ELLIPSIS
     <pgmpy.base.PDAG.PDAG object at 0x...>
     >>> ges.n_features_in_
@@ -138,14 +140,14 @@ class GES(_BaseCausalDiscovery):
         min_improvement: float = 1e-6,
         variant: str = "ges",
         n_jobs: int = 1,
-        max_parents: int | None = None,
+        max_neighbors: int | None = None,
     ):
         self.scoring_method = scoring_method
         self.return_type = return_type
         self.min_improvement = min_improvement
         self.variant = variant
         self.n_jobs = n_jobs
-        self.max_parents = max_parents
+        self.max_neighbors = max_neighbors
 
     def _separates(
         self,
@@ -269,6 +271,157 @@ class GES(_BaseCausalDiscovery):
         new_model.calibrate_directed_undirected_edges()
         return new_model
 
+    @staticmethod
+    def _score_insert(current_model, score_fn, ordered_tuple, u, v):
+        T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
+        subsets = deque([[*T, False] for T in powerset(list(T0))])
+        valid_insert_ops = []
+        parents_v = current_model.directed_parents(v)
+        na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
+        while subsets:
+            entry = subsets.popleft()
+            T, passed_cond_2 = set(entry[:-1]), entry[-1]
+            na_vuT = na_vu.union(T)
+            cond_1 = current_model.is_clique(na_vuT)
+            if not cond_1:
+                subsets = deque(s for s in subsets if not T.issubset(set(s[:-1])))
+                continue
+
+            if passed_cond_2:
+                cond_2 = True
+            else:
+                cond_2 = not current_model.has_semidirected_path(v, u, blocked_nodes=na_vuT)
+                if cond_2:
+                    for s in subsets:
+                        if T.issubset(set(s[:-1])):
+                            s[-1] = True
+
+            if cond_1 and cond_2:
+                new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
+                old_parents = ordered_tuple(na_vuT | parents_v, current_model)
+                score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
+                valid_insert_ops.append((score_delta, u, v, T))
+
+        if not valid_insert_ops:
+            return 0.0, None
+        best_op = max(valid_insert_ops, key=lambda x: x[0])
+        return best_op[0], best_op
+
+    @staticmethod
+    def _score_delete(current_model, score_fn, ordered_tuple, u, v):
+        if not current_model.has_edge(u, v):
+            raise ValueError(f"No edge exists between nodes {(u, v)} to delete.")
+
+        na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
+        subsets = deque([[*H, False] for H in powerset(list(na_vu))])
+        valid_delete_ops = []
+        parents_v = current_model.directed_parents(v)
+        while subsets:
+            entry = subsets.popleft()
+            H, cond_1 = set(entry[:-1]), entry[-1]
+
+            if not cond_1 and current_model.is_clique(na_vu - H):
+                cond_1 = True
+                for s in subsets:
+                    if H.issubset(set(s[:-1])):
+                        s[-1] = True
+
+            if cond_1:
+                aux = (na_vu - H) | parents_v | {u}
+                old_parents = ordered_tuple(aux, current_model)
+                new_parents = ordered_tuple(aux - {u}, current_model)
+                score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
+                valid_delete_ops.append((score_delta, u, v, H))
+
+        if not valid_delete_ops:
+            return 0.0, None
+        best_op = max(valid_delete_ops, key=lambda x: x[0])
+        return best_op[0], best_op
+
+    def _score_turn(self, current_model, score_fn, ordered_tuple, u, v):
+        valid_turn_ops = []
+
+        if current_model.has_edge(u, v) and current_model.has_edge(v, u):
+            non_adjacents = current_model.undirected_neighbors(v) - current_model.all_neighbors(u) - {u}
+
+            if len(non_adjacents) > 0:
+                parents_v = current_model.directed_parents(v)
+                parents_u = current_model.directed_parents(u)
+                C0 = current_model.undirected_neighbors(v) - {u}
+                subsets = deque([[*set(C), False] for C in powerset(list(C0)) if len(set(C) & non_adjacents) > 0])
+
+                subgraph = nx.DiGraph(current_model.subgraph(current_model.chain_component(v)))
+                while subsets:
+                    entry = subsets.popleft()
+                    C = set(entry[:-1])
+
+                    cond_1 = current_model.is_clique(C)
+                    if not cond_1:
+                        subsets = deque(s for s in subsets if not C.issubset(set(s[:-1])))
+                        continue
+
+                    na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
+
+                    if not self._separates({u, v}, C, na_vu - C, subgraph):
+                        continue
+
+                    new_score = score_fn(v, ordered_tuple(parents_v | C | {u}, current_model)) + score_fn(
+                        u, ordered_tuple(parents_u | (C & na_vu), current_model)
+                    )
+                    old_score = score_fn(v, ordered_tuple(parents_v | C, current_model)) + score_fn(
+                        u, ordered_tuple(parents_u | (C & na_vu) | {v}, current_model)
+                    )
+                    score_delta = new_score - old_score
+                    valid_turn_ops.append((score_delta, u, v, C))
+
+        else:
+            T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
+            subsets = deque([[*T, False] for T in powerset(list(T0))])
+
+            parents_v = current_model.directed_parents(v)
+            parents_u = current_model.directed_parents(u)
+
+            while subsets:
+                entry = subsets.popleft()
+                T, passed_cond_2 = set(entry[:-1]), entry[-1]
+
+                na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
+                C = na_vu.union(T)
+
+                cond_1 = current_model.is_clique(C)
+                if not cond_1:
+                    subsets = deque(s for s in subsets if not T.issubset(set(s[:-1])))
+                    continue
+
+                if passed_cond_2:
+                    cond_2 = True
+                else:
+                    cond_2 = not current_model.has_semidirected_path(
+                        v,
+                        u,
+                        blocked_nodes=C | current_model.undirected_neighbors(u),
+                        ignore_direct_edge=True,
+                    )
+                    if cond_2:
+                        for s in subsets:
+                            if T.issubset(set(s[:-1])):
+                                s[-1] = True
+
+                if cond_1 and cond_2:
+                    new_score = score_fn(v, ordered_tuple(C | parents_v | {u}, current_model)) + score_fn(
+                        u, ordered_tuple(parents_u - {v}, current_model)
+                    )
+                    old_score = score_fn(v, ordered_tuple(C | parents_v, current_model)) + score_fn(
+                        u, ordered_tuple(parents_u, current_model)
+                    )
+                    score_delta = new_score - old_score
+                    valid_turn_ops.append((score_delta, u, v, T))
+
+        if not valid_turn_ops:
+            return 0.0, None
+        best_op = max(valid_turn_ops, key=lambda x: x[0])
+        return best_op[0], best_op
+
     def _fit(self, X: pd.DataFrame):
         """
         The fitting procedure for the GES algorithm.
@@ -302,55 +455,17 @@ class GES(_BaseCausalDiscovery):
         current_model = PDAG()
         current_model.add_nodes_from(self.variables_)
 
-        def _score_insert(u, v):
-            T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
-            subsets = deque([[*T, False] for T in powerset(list(T0))])
-            valid_insert_ops = []
-            parents_v = current_model.directed_parents(v)
-            na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
-            while subsets:
-                entry = subsets.popleft()
-                T, passed_cond_2 = set(entry[:-1]), entry[-1]
-                na_vuT = na_vu.union(T)
-                cond_1 = current_model.is_clique(na_vuT)
-                if not cond_1:
-                    subsets = deque(s for s in subsets if not T.issubset(set(s[:-1])))
-                    continue
-
-                if passed_cond_2:
-                    cond_2 = True
-                else:
-                    cond_2 = not current_model.has_semidirected_path(v, u, blocked_nodes=na_vuT)
-                    if cond_2:
-                        for s in subsets:
-                            if T.issubset(set(s[:-1])):
-                                s[-1] = True
-
-                if cond_1 and cond_2:
-                    new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
-                    old_parents = ordered_tuple(na_vuT | parents_v, current_model)
-
-                    committed_parents = na_vuT | parents_v | {u}
-                    if (
-                        self.variant == "fges"
-                        and self.max_parents is not None
-                        and len(committed_parents) > self.max_parents
-                    ):
-                        continue
-                    score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
-                    valid_insert_ops.append((score_delta, u, v, T))
-
-            if not valid_insert_ops:
-                return 0.0, None
-            best_op = max(valid_insert_ops, key=lambda x: x[0])
-            return best_op[0], best_op
-
         # Step 2: Forward phase. Iteratively add edges till score stops improving.
         while True:
             potential_edges = []
-
             for u, v in combinations(sorted(current_model.nodes()), 2):
                 if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
+                    if self.max_neighbors is not None:
+                        if (
+                            len(current_model.all_neighbors(u)) >= self.max_neighbors
+                            or len(current_model.all_neighbors(v)) >= self.max_neighbors
+                        ):
+                            continue
                     potential_edges.append((u, v))
                     potential_edges.append((v, u))
 
@@ -359,14 +474,15 @@ class GES(_BaseCausalDiscovery):
 
             if use_parallel:
                 results = Parallel(n_jobs=n_workers, backend="threading")(
-                    delayed(_score_insert)(u, v) for u, v in potential_edges
+                    delayed(self._score_insert)(current_model, score_fn, ordered_tuple, u, v)
+                    for u, v in potential_edges
                 )
                 for idx, (sd, op) in enumerate(results):
                     score_deltas[idx] = sd
                     insertion_ops.append(op)
             else:
                 for index, (u, v) in enumerate(potential_edges):
-                    sd, op = _score_insert(u, v)
+                    sd, op = self._score_insert(current_model, score_fn, ordered_tuple, u, v)
                     score_deltas[index] = sd
                     insertion_ops.append(op)
 
@@ -380,36 +496,6 @@ class GES(_BaseCausalDiscovery):
             current_model = self.insert(op_to_add[1], op_to_add[2], op_to_add[3], current_model)
             current_model = current_model.to_cpdag()
 
-        def _score_delete(u, v):
-            if not current_model.has_edge(u, v):
-                raise ValueError(f"No edge exists between nodes {(u, v)} to delete.")
-
-            na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
-            subsets = deque([[*H, False] for H in powerset(list(na_vu))])
-            valid_delete_ops = []
-            parents_v = current_model.directed_parents(v)
-            while subsets:
-                entry = subsets.popleft()
-                H, cond_1 = set(entry[:-1]), entry[-1]
-
-                if not cond_1 and current_model.is_clique(na_vu - H):
-                    cond_1 = True
-                    for s in subsets:
-                        if H.issubset(set(s[:-1])):
-                            s[-1] = True
-
-                if cond_1:
-                    aux = (na_vu - H) | parents_v | {u}
-                    old_parents = ordered_tuple(aux, current_model)
-                    new_parents = ordered_tuple(aux - {u}, current_model)
-                    score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
-                    valid_delete_ops.append((score_delta, u, v, H))
-
-            if not valid_delete_ops:
-                return 0.0, None
-            best_op = max(valid_delete_ops, key=lambda x: x[0])
-            return best_op[0], best_op
-
         # Step 3: Backward phase. Iteratively remove edges till score stops improving.
         while True:
             all_removals = self._legal_edge_deletions(current_model)
@@ -421,14 +507,15 @@ class GES(_BaseCausalDiscovery):
 
             if use_parallel:
                 results = Parallel(n_jobs=n_workers, backend="threading")(
-                    delayed(_score_delete)(u, v) for u, v in potential_removals
+                    delayed(self._score_delete)(current_model, score_fn, ordered_tuple, u, v)
+                    for u, v in potential_removals
                 )
                 for idx, (sd, op) in enumerate(results):
                     score_deltas[idx] = sd
                     deletion_ops.append(op)
             else:
                 for index, (u, v) in enumerate(potential_removals):
-                    sd, op = _score_delete(u, v)
+                    sd, op = self._score_delete(current_model, score_fn, ordered_tuple, u, v)
                     score_deltas[index] = sd
                     deletion_ops.append(op)
 
@@ -442,104 +529,6 @@ class GES(_BaseCausalDiscovery):
             current_model = self.delete(op_to_delete[1], op_to_delete[2], op_to_delete[3], current_model)
             current_model = current_model.to_cpdag()
 
-        def _score_turn(u, v):
-            valid_turn_ops = []
-
-            if current_model.has_edge(u, v) and current_model.has_edge(v, u):
-                non_adjacents = current_model.undirected_neighbors(v) - current_model.all_neighbors(u) - {u}
-
-                if len(non_adjacents) > 0:
-                    parents_v = current_model.directed_parents(v)
-                    parents_u = current_model.directed_parents(u)
-                    C0 = current_model.undirected_neighbors(v) - {u}
-                    subsets = deque([[*set(C), False] for C in powerset(list(C0)) if len(set(C) & non_adjacents) > 0])
-
-                    subgraph = nx.DiGraph(current_model.subgraph(current_model.chain_component(v)))
-                    while subsets:
-                        entry = subsets.popleft()
-                        C = set(entry[:-1])
-
-                        cond_1 = current_model.is_clique(C)
-                        if not cond_1:
-                            subsets = deque(s for s in subsets if not C.issubset(set(s[:-1])))
-                            continue
-
-                        na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
-
-                        if not self._separates({u, v}, C, na_vu - C, subgraph):
-                            continue
-
-                        new_score = score_fn(v, ordered_tuple(parents_v | C | {u}, current_model)) + score_fn(
-                            u, ordered_tuple(parents_u | (C & na_vu), current_model)
-                        )
-                        old_score = score_fn(v, ordered_tuple(parents_v | C, current_model)) + score_fn(
-                            u, ordered_tuple(parents_u | (C & na_vu) | {v}, current_model)
-                        )
-                        committed_parents_v = parents_v | C | {u}
-                        if (
-                            self.variant == "fges"
-                            and self.max_parents is not None
-                            and len(committed_parents_v) > self.max_parents
-                        ):
-                            continue
-                        score_delta = new_score - old_score
-                        valid_turn_ops.append((score_delta, u, v, C))
-
-            else:
-                T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
-                subsets = deque([[*T, False] for T in powerset(list(T0))])
-
-                parents_v = current_model.directed_parents(v)
-                parents_u = current_model.directed_parents(u)
-
-                while subsets:
-                    entry = subsets.popleft()
-                    T, passed_cond_2 = set(entry[:-1]), entry[-1]
-
-                    na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
-                    C = na_vu.union(T)
-
-                    cond_1 = current_model.is_clique(C)
-                    if not cond_1:
-                        subsets = deque(s for s in subsets if not T.issubset(set(s[:-1])))
-                        continue
-
-                    if passed_cond_2:
-                        cond_2 = True
-                    else:
-                        cond_2 = not current_model.has_semidirected_path(
-                            v,
-                            u,
-                            blocked_nodes=C | current_model.undirected_neighbors(u),
-                            ignore_direct_edge=True,
-                        )
-                        if cond_2:
-                            for s in subsets:
-                                if T.issubset(set(s[:-1])):
-                                    s[-1] = True
-
-                    if cond_1 and cond_2:
-                        committed_parents_v = parents_v | C | {u}
-                        if (
-                            self.variant == "fges"
-                            and self.max_parents is not None
-                            and len(committed_parents_v) > self.max_parents
-                        ):
-                            continue
-                        new_score = score_fn(v, ordered_tuple(C | parents_v | {u}, current_model)) + score_fn(
-                            u, ordered_tuple(parents_u - {v}, current_model)
-                        )
-                        old_score = score_fn(v, ordered_tuple(C | parents_v, current_model)) + score_fn(
-                            u, ordered_tuple(parents_u, current_model)
-                        )
-                        score_delta = new_score - old_score
-                        valid_turn_ops.append((score_delta, u, v, T))
-
-            if not valid_turn_ops:
-                return 0.0, None
-            best_op = max(valid_turn_ops, key=lambda x: x[0])
-            return best_op[0], best_op
-
         # Step 4: Turning phase. Iteratively reorient edges till score stops improving.
         while True:
             potential_turns = []
@@ -551,14 +540,15 @@ class GES(_BaseCausalDiscovery):
 
             if use_parallel:
                 results = Parallel(n_jobs=n_workers, backend="threading")(
-                    delayed(_score_turn)(u, v) for u, v in potential_turns
+                    delayed(self._score_turn)(current_model, score_fn, ordered_tuple, u, v)
+                    for u, v in potential_turns
                 )
                 for idx, (sd, op) in enumerate(results):
                     score_deltas[idx] = sd
                     turn_ops.append(op)
             else:
                 for index, (u, v) in enumerate(potential_turns):
-                    sd, op = _score_turn(u, v)
+                    sd, op = self._score_turn(current_model, score_fn, ordered_tuple, u, v)
                     score_deltas[index] = sd
                     turn_ops.append(op)
 
