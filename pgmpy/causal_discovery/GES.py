@@ -276,7 +276,8 @@ class GES(_BaseCausalDiscovery):
         T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
         subsets = deque([[*T, False] for T in powerset(list(T0))])
         valid_insert_ops = []
-
+        
+        
         while subsets:
             entry = subsets.popleft()
             T, passed_cond_2 = set(entry[:-1]), entry[-1]
@@ -298,10 +299,10 @@ class GES(_BaseCausalDiscovery):
                         if T.issubset(set(s[:-1])):
                             s[-1] = True
 
-            if cond_1 and cond_2:
+            if cond_1 and cond_2: 
                 # Chickering's conditions (clique-ness of NA_v,u ∪ T and
                 # no semi-directed v->u path bypassing it) guarantee the
-                # resulting graph has a consistent extension, so we don't
+                # resulting graph has a consistent extension, so we don't             
                 # need to construct the post-insert graph just to verify.
                 parents_v = current_model.directed_parents(v)
                 new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
@@ -322,7 +323,7 @@ class GES(_BaseCausalDiscovery):
         na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
         subsets = deque([[*H, False] for H in powerset(list(na_vu))])
         valid_delete_ops = []
-
+        
         while subsets:
             entry = subsets.popleft()
             H, cond_1 = set(entry[:-1]), entry[-1]
@@ -547,7 +548,8 @@ class GES(_BaseCausalDiscovery):
 
             if use_parallel:
                 results = Parallel(n_jobs=n_workers, backend="threading")(
-                    delayed(self._score_turn)(current_model, score_fn, ordered_tuple, u, v) for u, v in potential_turns
+                    delayed(self._score_turn)(current_model, score_fn, ordered_tuple, u, v)
+                    for u, v in potential_turns
                 )
                 for idx, (sd, op) in enumerate(results):
                     score_deltas[idx] = sd
