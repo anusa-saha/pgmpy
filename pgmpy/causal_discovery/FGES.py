@@ -276,12 +276,15 @@ class FGES(_BaseCausalDiscovery):
         T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
         subsets = deque([[*T, False] for T in powerset(list(T0))])
         valid_insert_ops = []
-        parents_v = current_model.directed_parents(v)
-        na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
+        
+        
         while subsets:
             entry = subsets.popleft()
             T, passed_cond_2 = set(entry[:-1]), entry[-1]
+
+            na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
             na_vuT = na_vu.union(T)
+
             cond_1 = current_model.is_clique(na_vuT)
             if not cond_1:
                 subsets = deque(s for s in subsets if not T.issubset(set(s[:-1])))
@@ -296,7 +299,12 @@ class FGES(_BaseCausalDiscovery):
                         if T.issubset(set(s[:-1])):
                             s[-1] = True
 
-            if cond_1 and cond_2:
+            if cond_1 and cond_2: 
+                # Chickering's conditions (clique-ness of NA_v,u ∪ T and
+                # no semi-directed v->u path bypassing it) guarantee the
+                # resulting graph has a consistent extension, so we don't             
+                # need to construct the post-insert graph just to verify.
+                parents_v = current_model.directed_parents(v)
                 new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
                 old_parents = ordered_tuple(na_vuT | parents_v, current_model)
                 score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
@@ -315,7 +323,7 @@ class FGES(_BaseCausalDiscovery):
         na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
         subsets = deque([[*H, False] for H in powerset(list(na_vu))])
         valid_delete_ops = []
-        parents_v = current_model.directed_parents(v)
+        
         while subsets:
             entry = subsets.popleft()
             H, cond_1 = set(entry[:-1]), entry[-1]
@@ -327,7 +335,7 @@ class FGES(_BaseCausalDiscovery):
                         s[-1] = True
 
             if cond_1:
-                aux = (na_vu - H) | parents_v | {u}
+                aux = (na_vu - H) | current_model.directed_parents(v) | {u}
                 old_parents = ordered_tuple(aux, current_model)
                 new_parents = ordered_tuple(aux - {u}, current_model)
                 score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
