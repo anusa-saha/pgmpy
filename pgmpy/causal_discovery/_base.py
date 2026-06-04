@@ -598,6 +598,31 @@ class _TreeSearchMixin:
     from this mixin so that the shared logic lives in exactly one place.
     """
 
+    _EDGE_WEIGHT_FNS = {
+        "mutual_info": mutual_info_score,
+        "adjusted_mutual_info": adjusted_mutual_info_score,
+        "normalized_mutual_info": normalized_mutual_info_score,
+    }
+
+    @staticmethod
+    def _resolve_edge_weights_fn(edge_weights_fn):
+        """
+        Resolve ``edge_weights_fn`` to a callable of the form ``fn(array, array)``.
+
+        Accepts either one of the string shorthands in
+        :attr:`_EDGE_WEIGHT_FNS` or a callable (returned unchanged). Anything
+        else raises ``ValueError``.
+        """
+        if callable(edge_weights_fn):
+            return edge_weights_fn
+        try:
+            return _TreeSearchMixin._EDGE_WEIGHT_FNS[edge_weights_fn]
+        except (KeyError, TypeError):
+            raise ValueError(
+                f"edge_weights_fn should be one of {list(_TreeSearchMixin._EDGE_WEIGHT_FNS)}, "
+                f"or a callable of the form fn(array, array). Got: {edge_weights_fn!r}"
+            )
+
     @staticmethod
     def _get_weights(data, edge_weights_fn="mutual_info", n_jobs=-1, show_progress=True):
         """
@@ -628,18 +653,7 @@ class _TreeSearchMixin:
             Symmetric matrix where ``weights[i, j]`` is the edge weight between
             variable *i* and variable *j*.
         """
-        if edge_weights_fn == "mutual_info":
-            edge_weights_fn = mutual_info_score
-        elif edge_weights_fn == "adjusted_mutual_info":
-            edge_weights_fn = adjusted_mutual_info_score
-        elif edge_weights_fn == "normalized_mutual_info":
-            edge_weights_fn = normalized_mutual_info_score
-        elif not callable(edge_weights_fn):
-            raise ValueError(
-                f"edge_weights_fn should either be 'mutual_info', 'adjusted_mutual_info', "
-                f"'normalized_mutual_info', or a callable of the form fn(array, array). "
-                f"Got: {edge_weights_fn}"
-            )
+        edge_weights_fn = _TreeSearchMixin._resolve_edge_weights_fn(edge_weights_fn)
 
         n_vars = len(data.columns)
         pbar = combinations(data.columns, 2)

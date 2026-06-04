@@ -6,11 +6,6 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
-from sklearn.metrics import (
-    adjusted_mutual_info_score,
-    mutual_info_score,
-    normalized_mutual_info_score,
-)
 from tqdm.auto import tqdm
 
 from pgmpy import config
@@ -219,18 +214,7 @@ class TAN(_TreeSearchMixin, _BaseCausalDiscovery):
 
         """
         # Step 0: Resolve the edge weight computation function.
-        if edge_weights_fn == "mutual_info":
-            edge_weights_fn = mutual_info_score
-        elif edge_weights_fn == "adjusted_mutual_info":
-            edge_weights_fn = adjusted_mutual_info_score
-        elif edge_weights_fn == "normalized_mutual_info":
-            edge_weights_fn = normalized_mutual_info_score
-        elif not callable(edge_weights_fn):
-            raise ValueError(
-                f"edge_weights_fn should either be 'mutual_info', 'adjusted_mutual_info', "
-                f"'normalized_mutual_info', or a callable of the form fn(array, array). "
-                f"Got: {edge_weights_fn}"
-            )
+        edge_weights_fn = _TreeSearchMixin._resolve_edge_weights_fn(edge_weights_fn)
 
         # Step 1: Compute conditional edge weights for a fully connected graph.
         n_vars = len(data.columns)
