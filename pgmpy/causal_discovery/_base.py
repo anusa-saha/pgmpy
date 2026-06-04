@@ -617,7 +617,7 @@ class _TreeSearchMixin:
             return edge_weights_fn
         try:
             return _TreeSearchMixin._EDGE_WEIGHT_FNS[edge_weights_fn]
-        except KeyError, TypeError:
+        except (KeyError, TypeError):
             raise ValueError(
                 f"edge_weights_fn should be one of {list(_TreeSearchMixin._EDGE_WEIGHT_FNS)}, "
                 f"or a callable of the form fn(array, array). Got: {edge_weights_fn!r}"
