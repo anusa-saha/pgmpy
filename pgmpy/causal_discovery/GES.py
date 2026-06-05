@@ -10,12 +10,12 @@ import pandas as pd
 from joblib import Parallel, delayed
 
 from pgmpy.base import PDAG
-from pgmpy.causal_discovery._base import _BaseCausalDiscovery
+from pgmpy.causal_discovery._base import BaseCausalDiscovery
 from pgmpy.structure_score import BaseStructureScore, get_scoring_method
 from pgmpy.utils.mathext import powerset
 
 
-class GES(_BaseCausalDiscovery):
+class GES(BaseCausalDiscovery):
     """
     Score-based causal discovery using Greedy Equivalence Search (GES).
 
