@@ -481,7 +481,6 @@ class GES(BaseCausalDiscovery):
                         potential_edges.append((u, v))
                         potential_edges.append((v, u))
 
-                print(len(potential_edges))
                 score_deltas = np.zeros(len(potential_edges))
                 insertion_ops = []
 
@@ -514,7 +513,7 @@ class GES(BaseCausalDiscovery):
                 all_removals = self._legal_edge_deletions(current_model)
 
                 potential_removals = all_removals
-                print(len(potential_removals))
+
                 score_deltas = np.zeros(len(potential_removals))
                 deletion_ops = []
 
@@ -548,7 +547,6 @@ class GES(BaseCausalDiscovery):
                 for u, v in sorted(current_model.edges()):
                     potential_turns.append((v, u))
 
-                print(len(potential_turns))
                 score_deltas = np.zeros(len(potential_turns))
                 turn_ops = []
 
