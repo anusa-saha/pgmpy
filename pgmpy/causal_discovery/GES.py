@@ -1,6 +1,7 @@
 import os
 from collections import deque
 from collections.abc import Hashable, Iterable
+from contextlib import nullcontext
 from itertools import combinations
 from typing import Any
 
@@ -276,8 +277,7 @@ class GES(BaseCausalDiscovery):
         T0 = current_model.undirected_neighbors(v) - current_model.all_neighbors(u)
         subsets = deque([[*T, False] for T in powerset(list(T0))])
         valid_insert_ops = []
-        
-        
+
         while subsets:
             entry = subsets.popleft()
             T, passed_cond_2 = set(entry[:-1]), entry[-1]
@@ -299,10 +299,10 @@ class GES(BaseCausalDiscovery):
                         if T.issubset(set(s[:-1])):
                             s[-1] = True
 
-            if cond_1 and cond_2: 
+            if cond_1 and cond_2:
                 # Chickering's conditions (clique-ness of NA_v,u ∪ T and
                 # no semi-directed v->u path bypassing it) guarantee the
-                # resulting graph has a consistent extension, so we don't             
+                # resulting graph has a consistent extension, so we don't
                 # need to construct the post-insert graph just to verify.
                 parents_v = current_model.directed_parents(v)
                 new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
@@ -323,7 +323,7 @@ class GES(BaseCausalDiscovery):
         na_vu = current_model.undirected_neighbors(v) & current_model.all_neighbors(u)
         subsets = deque([[*H, False] for H in powerset(list(na_vu))])
         valid_delete_ops = []
-        
+
         while subsets:
             entry = subsets.popleft()
             H, cond_1 = set(entry[:-1]), entry[-1]
@@ -463,112 +463,118 @@ class GES(BaseCausalDiscovery):
         current_model = PDAG()
         current_model.add_nodes_from(self.variables_)
 
-        # Step 2: Forward phase. Iteratively add edges till score stops improving.
-        while True:
-            potential_edges = []
-            for u, v in combinations(sorted(current_model.nodes()), 2):
-                if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
-                    if self.max_neighbors is not None:
-                        if (
-                            len(current_model.all_neighbors(u)) >= self.max_neighbors
-                            or len(current_model.all_neighbors(v)) >= self.max_neighbors
-                        ):
-                            continue
-                    potential_edges.append((u, v))
-                    potential_edges.append((v, u))
+        # The parallelization pool created once, reused across all iterations of all three phases:
+        parallel_ctx = Parallel(n_jobs=n_workers, backend="threading") if use_parallel else nullcontext()
 
-            score_deltas = np.zeros(len(potential_edges))
-            insertion_ops = []
+        with parallel_ctx as parallel:
+            # Step 2: Forward phase. Iteratively add edges till score stops improving.
+            while True:
+                potential_edges = []
+                for u, v in combinations(sorted(current_model.nodes()), 2):
+                    if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
+                        if self.max_neighbors is not None:
+                            if (
+                                len(current_model.all_neighbors(u)) >= self.max_neighbors
+                                or len(current_model.all_neighbors(v)) >= self.max_neighbors
+                            ):
+                                continue
+                        potential_edges.append((u, v))
+                        potential_edges.append((v, u))
 
-            if use_parallel:
-                results = Parallel(n_jobs=n_workers, backend="threading")(
-                    delayed(self._score_insert)(current_model, score_fn, ordered_tuple, u, v)
-                    for u, v in potential_edges
-                )
-                for idx, (sd, op) in enumerate(results):
-                    score_deltas[idx] = sd
-                    insertion_ops.append(op)
-            else:
-                for index, (u, v) in enumerate(potential_edges):
-                    sd, op = self._score_insert(current_model, score_fn, ordered_tuple, u, v)
-                    score_deltas[index] = sd
-                    insertion_ops.append(op)
+                print(len(potential_edges))
+                score_deltas = np.zeros(len(potential_edges))
+                insertion_ops = []
 
-            if (len(potential_edges) == 0) or (np.all(score_deltas < self.min_improvement)):
-                break
+                if use_parallel:
+                    results = parallel(
+                        delayed(self._score_insert)(current_model, score_fn, ordered_tuple, u, v)
+                        for u, v in potential_edges
+                    )
+                    for idx, (sd, op) in enumerate(results):
+                        score_deltas[idx] = sd
+                        insertion_ops.append(op)
+                else:
+                    for index, (u, v) in enumerate(potential_edges):
+                        sd, op = self._score_insert(current_model, score_fn, ordered_tuple, u, v)
+                        score_deltas[index] = sd
+                        insertion_ops.append(op)
 
-            op_to_add = insertion_ops[np.argmax(score_deltas)]
-            if op_to_add is None:
-                break
+                if (len(potential_edges) == 0) or (np.all(score_deltas < self.min_improvement)):
+                    break
 
-            current_model = self.insert(op_to_add[1], op_to_add[2], op_to_add[3], current_model)
-            current_model = current_model.to_cpdag()
+                op_to_add = insertion_ops[np.argmax(score_deltas)]
+                if op_to_add is None:
+                    break
 
-        # Step 3: Backward phase. Iteratively remove edges till score stops improving.
-        while True:
-            all_removals = self._legal_edge_deletions(current_model)
+                current_model = self.insert(op_to_add[1], op_to_add[2], op_to_add[3], current_model)
+                current_model = current_model.to_cpdag()
 
-            potential_removals = all_removals
+            # Step 3: Backward phase. Iteratively remove edges till score stops improving.
+            while True:
+                all_removals = self._legal_edge_deletions(current_model)
 
-            score_deltas = np.zeros(len(potential_removals))
-            deletion_ops = []
+                potential_removals = all_removals
+                print(len(potential_removals))
+                score_deltas = np.zeros(len(potential_removals))
+                deletion_ops = []
 
-            if use_parallel:
-                results = Parallel(n_jobs=n_workers, backend="threading")(
-                    delayed(self._score_delete)(current_model, score_fn, ordered_tuple, u, v)
-                    for u, v in potential_removals
-                )
-                for idx, (sd, op) in enumerate(results):
-                    score_deltas[idx] = sd
-                    deletion_ops.append(op)
-            else:
-                for index, (u, v) in enumerate(potential_removals):
-                    sd, op = self._score_delete(current_model, score_fn, ordered_tuple, u, v)
-                    score_deltas[index] = sd
-                    deletion_ops.append(op)
+                if use_parallel:
+                    results = parallel(
+                        delayed(self._score_delete)(current_model, score_fn, ordered_tuple, u, v)
+                        for u, v in potential_removals
+                    )
+                    for idx, (sd, op) in enumerate(results):
+                        score_deltas[idx] = sd
+                        deletion_ops.append(op)
+                else:
+                    for index, (u, v) in enumerate(potential_removals):
+                        sd, op = self._score_delete(current_model, score_fn, ordered_tuple, u, v)
+                        score_deltas[index] = sd
+                        deletion_ops.append(op)
 
-            if (len(potential_removals) == 0) or (np.all(score_deltas < self.min_improvement)):
-                break
+                if (len(potential_removals) == 0) or (np.all(score_deltas < self.min_improvement)):
+                    break
 
-            op_to_delete = deletion_ops[np.argmax(score_deltas)]
-            if op_to_delete is None:
-                break
+                op_to_delete = deletion_ops[np.argmax(score_deltas)]
+                if op_to_delete is None:
+                    break
 
-            current_model = self.delete(op_to_delete[1], op_to_delete[2], op_to_delete[3], current_model)
-            current_model = current_model.to_cpdag()
+                current_model = self.delete(op_to_delete[1], op_to_delete[2], op_to_delete[3], current_model)
+                current_model = current_model.to_cpdag()
 
-        # Step 4: Turning phase. Iteratively reorient edges till score stops improving.
-        while True:
-            potential_turns = []
-            for u, v in sorted(current_model.edges()):
-                potential_turns.append((v, u))
+            # Step 4: Turning phase. Iteratively reorient edges till score stops improving.
+            while True:
+                potential_turns = []
+                for u, v in sorted(current_model.edges()):
+                    potential_turns.append((v, u))
 
-            score_deltas = np.zeros(len(potential_turns))
-            turn_ops = []
+                print(len(potential_turns))
+                score_deltas = np.zeros(len(potential_turns))
+                turn_ops = []
 
-            if use_parallel:
-                results = Parallel(n_jobs=n_workers, backend="threading")(
-                    delayed(self._score_turn)(current_model, score_fn, ordered_tuple, u, v)
-                    for u, v in potential_turns
-                )
-                for idx, (sd, op) in enumerate(results):
-                    score_deltas[idx] = sd
-                    turn_ops.append(op)
-            else:
-                for index, (u, v) in enumerate(potential_turns):
-                    sd, op = self._score_turn(current_model, score_fn, ordered_tuple, u, v)
-                    score_deltas[index] = sd
-                    turn_ops.append(op)
+                if use_parallel:
+                    results = parallel(
+                        delayed(self._score_turn)(current_model, score_fn, ordered_tuple, u, v)
+                        for u, v in potential_turns
+                    )
+                    for idx, (sd, op) in enumerate(results):
+                        score_deltas[idx] = sd
+                        turn_ops.append(op)
+                else:
+                    for index, (u, v) in enumerate(potential_turns):
+                        sd, op = self._score_turn(current_model, score_fn, ordered_tuple, u, v)
+                        score_deltas[index] = sd
+                        turn_ops.append(op)
 
-            if (len(potential_turns) == 0) or (np.all(score_deltas < self.min_improvement)):
-                break
+                if (len(potential_turns) == 0) or (np.all(score_deltas < self.min_improvement)):
+                    break
 
-            op_to_turn = turn_ops[np.argmax(score_deltas)]
-            if op_to_turn is None:
-                break
+                op_to_turn = turn_ops[np.argmax(score_deltas)]
+                if op_to_turn is None:
+                    break
 
-            current_model = self.turn(op_to_turn[1], op_to_turn[2], op_to_turn[3], current_model)
-            current_model = current_model.to_cpdag()
+                current_model = self.turn(op_to_turn[1], op_to_turn[2], op_to_turn[3], current_model)
+                current_model = current_model.to_cpdag()
 
         # Step 5: Store results
         current_model = current_model.to_cpdag()
