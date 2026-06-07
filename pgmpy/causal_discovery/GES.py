@@ -30,14 +30,18 @@ class GES(BaseCausalDiscovery):
         2. Backward phase: Edges are removed to improve the model score.
         3. Edge turning phase: Edge orientations are flipped to improve the score.
 
-    This implementation also supports FGES-style optimization variant. The FGES variant introduces:
-        - parallel candidate-score evaluation
-        - locality-aware update and rescanning strategies
-        - bounded neighbor-set search
-        - reduced graph materialization overhead.
+    Two search variants are available:
 
-    The implementation preserves the same legality checks, CPDAG semantics,
-    and graph operators used in standard GES while improving scalability on larger graphs.
+        - ``variant="ges"``: Standard sequential implementation of GES.
+
+        - ``variant="fges"``: Functionally equivalent GES search with parallel candidate-score
+            evaluation using ``joblib``. Candidate insertion, deletion, and turning operators
+            can be scored concurrently across multiple workers. The search operators, legality
+            conditions, and resulting CPDAG semantics are identical to the standard GES implementation.
+
+    The implementation follows Chickering's operator-based formulation of GES
+    and applies insert, delete, and turn operators directly on CPDAGs while
+    maintaining equivalence-class consistency.
 
     Parameters
     ----------
@@ -65,22 +69,25 @@ class GES(BaseCausalDiscovery):
         improvements are not performed.
 
     variant : {"ges", "fges"}, default="ges"
-        Selects the search strategy variant. Options are:
+        Search strategy to use.
 
-        - "ges":  Standard Greedy Equivalence Search.
-        - "fges": Locality-aware FGES-style optimization variant
-            with optional parallelized candidate scoring.
+        - "ges": Standard sequential GES.
+        - "fges": Parallelized GES implementation that evaluates candidate
+            insertions, deletions, and turns concurrently using ``joblib``.
+            The resulting search trajectory and legality conditions remain
+            identical to standard GES.
 
     n_jobs : int, default=1
-        Number of worker threads used for parallel
-        candidate-score evaluation in the FGES variant.
+        Number of worker threads used when ``variant="fges"``.
+
+        - 1: Sequential execution.
+        - -1: Use all available CPU cores.
+        - >1: Use the specified number of worker threads.
 
     max_neighbors : int or None, default=None
-        Optional upper bound on the number of adjacent nodes (degree) allowed
-        for any node. Candidate edge additions that would cause either
-        endpoint's degree to exceed this threshold are discarded during the
-        forward phase. Deletions and turns never introduce new adjacencies and
-        are therefore unaffected by this parameter.
+        Optional degree constraint applied during the forward phase.
+        Candidate edge insertions that would cause either endpoint to have
+        at least ``max_neighbors`` adjacent nodes are skipped.
 
     Attributes
     ----------
@@ -132,6 +139,10 @@ class GES(BaseCausalDiscovery):
     ----------
     - :cite:p:`chickering_2002b`
     - https://github.com/juangamella/ges
+    .. [1] Ramsey, J., Glymour, M., Sanchez-Romero, R. et al. A million variables and more:
+    the Fast Greedy Equivalence Search algorithm for learning high-dimensional graphical
+    causal models, with an application to functional magnetic resonance images. Int J Data
+    Sci Anal 3, 121–129 (2017). https://doi.org/10.1007/s41060-016-0032-z
     """
 
     def __init__(
