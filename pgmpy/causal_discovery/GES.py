@@ -124,7 +124,7 @@ class GES(BaseCausalDiscovery):
     >>> ges.n_features_in_
     37
 
-    Use the locality-aware parallelized FGES algorithm to learn the causal structure from data.
+    Use the parallelized FGES algorithm to learn the causal structure from data.
     >>> from pgmpy.causal_discovery import GES
     >>> ges = GES(scoring_method="bic-d", variant="fges", n_jobs=2, max_neighbors=4)
     >>> ges.fit(df)
