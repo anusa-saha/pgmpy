@@ -86,7 +86,7 @@ class GES(BaseCausalDiscovery):
 
     max_parents : int or None, default=None
         Optional search-space pruning heuristic applied during the forward phase.
-        
+
         Candidate edge insertions are skipped whenever either endpoint of the
         candidate edge already has at least ``max_parents`` directed parents.
         This heuristic reduces the number of candidate insertions evaluated and
@@ -526,7 +526,7 @@ class GES(BaseCausalDiscovery):
             while True:
                 all_removals = self._legal_edge_deletions(current_model)
                 potential_removals = all_removals
-                
+
                 score_deltas = np.zeros(len(potential_removals))
                 deletion_ops = []
 
