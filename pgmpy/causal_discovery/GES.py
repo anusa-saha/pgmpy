@@ -84,13 +84,10 @@ class GES(BaseCausalDiscovery):
         - -1: Use all available CPU cores.
         - >1: Use the specified number of worker threads.
 
-    max_parents : int or None, default=None
-        Optional search-space pruning heuristic applied during the forward phase.
-
-        Candidate edge insertions are skipped whenever either endpoint of the
-        candidate edge already has at least ``max_parents`` directed parents.
-        This heuristic reduces the number of candidate insertions evaluated and
-        can substantially improve runtime on high-dimensional problems.
+    max_neighbors : int or None, default=None
+        Optional degree constraint applied during the forward phase.
+        Candidate edge insertions that would cause either endpoint to have
+        at least ``max_neighbors`` adjacent nodes are skipped.
 
     Attributes
     ----------
@@ -129,9 +126,9 @@ class GES(BaseCausalDiscovery):
 
     Use the parallelized FGES algorithm to learn the causal structure from data.
     >>> from pgmpy.causal_discovery import GES
-    >>> ges = GES(scoring_method="bic-d", variant="fges", n_jobs=2, max_parents=4)
+    >>> ges = GES(scoring_method="bic-d", variant="fges", n_jobs=2, max_neighbors=4)
     >>> ges.fit(df)
-    GES(max_parents=4, n_jobs=2, scoring_method='bic-d', variant='fges')
+    GES(max_neighbors=4, n_jobs=2, scoring_method='bic-d', variant='fges')
     >>> ges.causal_graph_  # doctest: +ELLIPSIS
     <pgmpy.base.PDAG.PDAG object at 0x...>
     >>> ges.n_features_in_
@@ -155,14 +152,14 @@ class GES(BaseCausalDiscovery):
         min_improvement: float = 1e-6,
         variant: str = "ges",
         n_jobs: int = 1,
-        max_parents: int | None = None,
+        max_neighbors: int | None = None,
     ):
         self.scoring_method = scoring_method
         self.return_type = return_type
         self.min_improvement = min_improvement
         self.variant = variant
         self.n_jobs = n_jobs
-        self.max_parents = max_parents
+        self.max_neighbors = max_neighbors
 
     def _separates(
         self,
@@ -486,10 +483,10 @@ class GES(BaseCausalDiscovery):
                 potential_edges = []
                 for u, v in combinations(sorted(current_model.nodes()), 2):
                     if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
-                        if self.max_parents is not None:
+                        if self.max_neighbors is not None:
                             if (
-                                len(current_model.directed_parents(u)) >= self.max_parents
-                                or len(current_model.directed_parents(v)) >= self.max_parents
+                                len(current_model.all_neighbors(u)) >= self.max_neighbors
+                                or len(current_model.all_neighbors(v)) >= self.max_neighbors
                             ):
                                 continue
                         potential_edges.append((u, v))
@@ -526,7 +523,7 @@ class GES(BaseCausalDiscovery):
             while True:
                 all_removals = self._legal_edge_deletions(current_model)
                 potential_removals = all_removals
-
+                
                 score_deltas = np.zeros(len(potential_removals))
                 deletion_ops = []
 
