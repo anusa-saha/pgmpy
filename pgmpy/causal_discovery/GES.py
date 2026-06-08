@@ -523,7 +523,7 @@ class GES(BaseCausalDiscovery):
             while True:
                 all_removals = self._legal_edge_deletions(current_model)
                 potential_removals = all_removals
-                
+
                 score_deltas = np.zeros(len(potential_removals))
                 deletion_ops = []
 
