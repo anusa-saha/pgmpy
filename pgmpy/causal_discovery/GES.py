@@ -467,15 +467,14 @@ class GES(BaseCausalDiscovery):
         score_fn = score.local_score
 
         # Initialization of the parallelization if n_jobs provided
-        n_workers = os.cpu_count() if self.n_jobs == -1 else self.n_jobs
-        use_parallel = self.variant == "fges" and n_workers != 1
+        use_parallel = self.n_jobs != 1
 
         # Step 1.2: Initialize the starting PDAG
         current_model = PDAG()
         current_model.add_nodes_from(self.variables_)
 
         # The parallelization pool created once, reused across all iterations of all three phases:
-        parallel_ctx = Parallel(n_jobs=n_workers, backend="threading") if use_parallel else nullcontext()
+        parallel_ctx = Parallel(n_jobs=self.n_jobs, backend="loky") if use_parallel else nullcontext()
 
         with parallel_ctx as parallel:
             # Step 2: Forward phase. Iteratively add edges till score stops improving.
@@ -491,7 +490,7 @@ class GES(BaseCausalDiscovery):
                                 continue
                         potential_edges.append((u, v))
                         potential_edges.append((v, u))
-
+                print(len(potential_edges))
                 score_deltas = np.zeros(len(potential_edges))
                 insertion_ops = []
 
@@ -518,7 +517,7 @@ class GES(BaseCausalDiscovery):
 
                 current_model = self.insert(op_to_add[1], op_to_add[2], op_to_add[3], current_model)
                 current_model = current_model.to_cpdag()
-
+            
             # Step 3: Backward phase. Iteratively remove edges till score stops improving.
             while True:
                 all_removals = self._legal_edge_deletions(current_model)
@@ -550,7 +549,7 @@ class GES(BaseCausalDiscovery):
 
                 current_model = self.delete(op_to_delete[1], op_to_delete[2], op_to_delete[3], current_model)
                 current_model = current_model.to_cpdag()
-
+            
             # Step 4: Turning phase. Iteratively reorient edges till score stops improving.
             while True:
                 potential_turns = []
@@ -583,7 +582,7 @@ class GES(BaseCausalDiscovery):
 
                 current_model = self.turn(op_to_turn[1], op_to_turn[2], op_to_turn[3], current_model)
                 current_model = current_model.to_cpdag()
-
+            
         # Step 5: Store results
         current_model = current_model.to_cpdag()
 
