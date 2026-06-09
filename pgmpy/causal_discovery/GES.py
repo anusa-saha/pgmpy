@@ -1,4 +1,3 @@
-import os
 from collections import deque
 from collections.abc import Hashable, Iterable
 from contextlib import nullcontext
@@ -517,7 +516,7 @@ class GES(BaseCausalDiscovery):
 
                 current_model = self.insert(op_to_add[1], op_to_add[2], op_to_add[3], current_model)
                 current_model = current_model.to_cpdag()
-            
+
             # Step 3: Backward phase. Iteratively remove edges till score stops improving.
             while True:
                 all_removals = self._legal_edge_deletions(current_model)
@@ -549,7 +548,7 @@ class GES(BaseCausalDiscovery):
 
                 current_model = self.delete(op_to_delete[1], op_to_delete[2], op_to_delete[3], current_model)
                 current_model = current_model.to_cpdag()
-            
+
             # Step 4: Turning phase. Iteratively reorient edges till score stops improving.
             while True:
                 potential_turns = []
@@ -582,7 +581,7 @@ class GES(BaseCausalDiscovery):
 
                 current_model = self.turn(op_to_turn[1], op_to_turn[2], op_to_turn[3], current_model)
                 current_model = current_model.to_cpdag()
-            
+
         # Step 5: Store results
         current_model = current_model.to_cpdag()
 

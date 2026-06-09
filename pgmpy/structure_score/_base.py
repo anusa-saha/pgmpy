@@ -50,10 +50,10 @@ class BaseStructureScore(BaseObject):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state.pop("_cached_local_score", None)  
+        state.pop("_cached_local_score", None)
         return state
-    
-    def __setstate__(self, state):                                              
+
+    def __setstate__(self, state):
         self.__dict__.update(state)
         self._cached_local_score = lru_cache(maxsize=10000)(self._local_score)
 
