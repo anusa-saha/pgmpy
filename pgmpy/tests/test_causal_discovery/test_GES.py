@@ -191,6 +191,77 @@ class TestGESCore:
         assert hasattr(est, "n_features_in_")
         assert hasattr(est, "feature_names_in_")
 
+    @pytest.mark.parametrize(
+        "data_fixture",
+        ["rand_data", "titanic_data_categorical"],
+    )
+    def test_parallel_matches_ges(self, request, data_fixture):
+        data = request.getfixturevalue(data_fixture)
+
+        ges_graph = (
+            GES(
+                scoring_method="k2",
+                return_type="pdag",
+            )
+            .fit(data)
+            .causal_graph_
+        )
+
+        fges_graph = (
+            GES(
+                scoring_method="k2",
+                n_jobs=2,
+                return_type="pdag",
+            )
+            .fit(data)
+            .causal_graph_
+        )
+
+        assert ges_graph.directed_edges == fges_graph.directed_edges
+        assert ges_graph.undirected_edges == fges_graph.undirected_edges
+
+    @pytest.mark.parametrize(
+        "data_fixture",
+        ["rand_data", "titanic_data_categorical"],
+    )
+    def test_parallel_consistency(self, request, data_fixture):
+        data = request.getfixturevalue(data_fixture)
+
+        graph_1 = (
+            GES(
+                scoring_method="k2",
+                n_jobs=1,
+                return_type="pdag",
+            )
+            .fit(data)
+            .causal_graph_
+        )
+
+        graph_2 = (
+            GES(
+                scoring_method="k2",
+                n_jobs=2,
+                return_type="pdag",
+            )
+            .fit(data)
+            .causal_graph_
+        )
+
+        assert graph_1.directed_edges == graph_2.directed_edges
+        assert graph_1.undirected_edges == graph_2.undirected_edges
+
+    def test_max_neighbors(self, titanic_data_categorical):
+        est = GES(
+            scoring_method="k2",
+            max_neighbors=1,
+            return_type="pdag",
+        )
+
+        est.fit(titanic_data_categorical)
+
+        assert est.causal_graph_ is not None
+        assert est.adjacency_matrix_ is not None
+
 
 @pytest.mark.skipif(
     not _check_soft_dependencies("sempler", severity="none"),
@@ -274,125 +345,3 @@ class TestParityGES:
 def test_expert_knowledge_not_supported():
     with pytest.raises(TypeError, match="expert_knowledge"):
         GES(expert_knowledge=None)
-
-
-class TestFGES:
-    """Tests specific to the FGES implementation."""
-
-    def test_fges_matches_ges_rand(self, rand_data):
-        ges_graph = (
-            GES(
-                scoring_method="k2",
-                variant="ges",
-                return_type="pdag",
-            )
-            .fit(rand_data)
-            .causal_graph_
-        )
-
-        fges_graph = (
-            GES(
-                scoring_method="k2",
-                variant="fges",
-                n_jobs=2,
-                return_type="pdag",
-            )
-            .fit(rand_data)
-            .causal_graph_
-        )
-
-        assert ges_graph.directed_edges == fges_graph.directed_edges
-        assert ges_graph.undirected_edges == fges_graph.undirected_edges
-
-    def test_fges_matches_ges_titanic(self, titanic_data_categorical):
-        ges_graph = (
-            GES(
-                scoring_method="k2",
-                variant="ges",
-                return_type="pdag",
-            )
-            .fit(titanic_data_categorical)
-            .causal_graph_
-        )
-
-        fges_graph = (
-            GES(
-                scoring_method="k2",
-                variant="fges",
-                n_jobs=2,
-                return_type="pdag",
-            )
-            .fit(titanic_data_categorical)
-            .causal_graph_
-        )
-
-        assert ges_graph.directed_edges == fges_graph.directed_edges
-        assert ges_graph.undirected_edges == fges_graph.undirected_edges
-
-    def test_fges_parallel_consistency_rand(self, rand_data):
-        graph_1 = (
-            GES(
-                scoring_method="k2",
-                variant="fges",
-                n_jobs=1,
-                return_type="pdag",
-            )
-            .fit(rand_data)
-            .causal_graph_
-        )
-
-        graph_2 = (
-            GES(
-                scoring_method="k2",
-                variant="fges",
-                n_jobs=2,
-                return_type="pdag",
-            )
-            .fit(rand_data)
-            .causal_graph_
-        )
-
-        assert graph_1.directed_edges == graph_2.directed_edges
-        assert graph_1.undirected_edges == graph_2.undirected_edges
-
-    def test_fges_parallel_consistency_titanic(
-        self,
-        titanic_data_categorical,
-    ):
-        graph_1 = (
-            GES(
-                scoring_method="k2",
-                variant="fges",
-                n_jobs=1,
-                return_type="pdag",
-            )
-            .fit(titanic_data_categorical)
-            .causal_graph_
-        )
-
-        graph_2 = (
-            GES(
-                scoring_method="k2",
-                variant="fges",
-                n_jobs=2,
-                return_type="pdag",
-            )
-            .fit(titanic_data_categorical)
-            .causal_graph_
-        )
-
-        assert graph_1.directed_edges == graph_2.directed_edges
-        assert graph_1.undirected_edges == graph_2.undirected_edges
-
-    def test_fges_max_neighbors(self, titanic_data_categorical):
-        est = GES(
-            scoring_method="k2",
-            variant="fges",
-            max_neighbors=1,
-            return_type="pdag",
-        )
-
-        est.fit(titanic_data_categorical)
-
-        assert est.causal_graph_ is not None
-        assert est.adjacency_matrix_ is not None

@@ -29,15 +29,6 @@ class GES(BaseCausalDiscovery):
         2. Backward phase: Edges are removed to improve the model score.
         3. Edge turning phase: Edge orientations are flipped to improve the score.
 
-    Two search variants are available:
-
-        - ``variant="ges"``: Standard sequential implementation of GES.
-
-        - ``variant="fges"``: Functionally equivalent GES search with parallel candidate-score
-            evaluation using ``joblib``. Candidate insertion, deletion, and turning operators
-            can be scored concurrently across multiple workers. The search operators, legality
-            conditions, and resulting CPDAG semantics are identical to the standard GES implementation.
-
     The implementation follows Chickering's operator-based formulation of GES
     and applies insert, delete, and turn operators directly on CPDAGs while
     maintaining equivalence-class consistency.
@@ -67,20 +58,10 @@ class GES(BaseCausalDiscovery):
         (edge addition, removal, or flipping). Operations with smaller
         improvements are not performed.
 
-    variant : {"ges", "fges"}, default="ges"
-        Search strategy to use.
-
-        - "ges": Standard sequential GES.
-        - "fges": Parallelized GES implementation that evaluates candidate
-            insertions, deletions, and turns concurrently using ``joblib``.
-            The resulting search trajectory and legality conditions remain
-            identical to standard GES.
-
     n_jobs : int, default=1
         Number of worker threads used when ``variant="fges"``.
 
         - 1: Sequential execution.
-        - -1: Use all available CPU cores.
         - >1: Use the specified number of worker threads.
 
     max_neighbors : int or None, default=None
@@ -123,11 +104,11 @@ class GES(BaseCausalDiscovery):
     >>> ges.n_features_in_
     37
 
-    Use the parallelized FGES algorithm to learn the causal structure from data.
+    Use the parallelized GES algorithm to learn the causal structure from data.
     >>> from pgmpy.causal_discovery import GES
-    >>> ges = GES(scoring_method="bic-d", variant="fges", n_jobs=2, max_neighbors=4)
+    >>> ges = GES(scoring_method="bic-d", n_jobs=2, max_neighbors=4)
     >>> ges.fit(df)
-    GES(max_neighbors=4, n_jobs=2, scoring_method='bic-d', variant='fges')
+    GES(max_neighbors=4, n_jobs=2, scoring_method='bic-d')
     >>> ges.causal_graph_  # doctest: +ELLIPSIS
     <pgmpy.base.PDAG.PDAG object at 0x...>
     >>> ges.n_features_in_
@@ -149,14 +130,12 @@ class GES(BaseCausalDiscovery):
         scoring_method: str | BaseStructureScore | None = None,
         return_type: str = "pdag",
         min_improvement: float = 1e-6,
-        variant: str = "ges",
         n_jobs: int = 1,
         max_neighbors: int | None = None,
     ):
         self.scoring_method = scoring_method
         self.return_type = return_type
         self.min_improvement = min_improvement
-        self.variant = variant
         self.n_jobs = n_jobs
         self.max_neighbors = max_neighbors
 
