@@ -489,7 +489,7 @@ class GES(BaseCausalDiscovery):
                                 continue
                         potential_edges.append((u, v))
                         potential_edges.append((v, u))
-                print(len(potential_edges))
+
                 score_deltas = np.zeros(len(potential_edges))
                 insertion_ops = []
 
