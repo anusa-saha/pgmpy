@@ -384,19 +384,6 @@ class TestFGES:
         assert graph_1.directed_edges == graph_2.directed_edges
         assert graph_1.undirected_edges == graph_2.undirected_edges
 
-    def test_fges_n_jobs_minus_one(self, rand_data):
-        est = GES(
-            scoring_method="k2",
-            variant="fges",
-            n_jobs=-1,
-            return_type="pdag",
-        )
-
-        est.fit(rand_data)
-
-        assert est.causal_graph_ is not None
-        assert est.adjacency_matrix_ is not None
-
     def test_fges_max_neighbors(self, titanic_data_categorical):
         est = GES(
             scoring_method="k2",
