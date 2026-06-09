@@ -48,15 +48,6 @@ class BaseStructureScore(BaseObject):
         """Compute the cached local score for `variable` given `parents`."""
         return self._cached_local_score(variable, parents)
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state.pop("_cached_local_score", None)
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self._cached_local_score = lru_cache(maxsize=10000)(self._local_score)
-
     def _local_score(self, variable: str, parents: tuple[str, ...]) -> float:
         """Compute the uncached local score for `variable` given `parents`."""
         raise NotImplementedError

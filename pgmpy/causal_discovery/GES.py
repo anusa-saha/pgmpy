@@ -59,8 +59,8 @@ class GES(BaseCausalDiscovery):
         improvements are not performed.
 
     n_jobs : int, default=1
-        Number of worker threads used when ``variant="fges"``.
-
+        Number of worker threads used for parallelization.
+        
         - 1: Sequential execution.
         - >1: Use the specified number of worker threads.
 
@@ -452,7 +452,7 @@ class GES(BaseCausalDiscovery):
         current_model.add_nodes_from(self.variables_)
 
         # The parallelization pool created once, reused across all iterations of all three phases:
-        parallel_ctx = Parallel(n_jobs=self.n_jobs, backend="loky") if use_parallel else nullcontext()
+        parallel_ctx = Parallel(n_jobs=self.n_jobs, backend="threading") if use_parallel else nullcontext()
 
         with parallel_ctx as parallel:
             # Step 2: Forward phase. Iteratively add edges till score stops improving.
