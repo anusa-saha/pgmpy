@@ -475,10 +475,8 @@ class GES(BaseCausalDiscovery):
                 insertion_ops = []
 
                 if use_parallel:
-                    k, m = divmod(len(potential_edges), n_workers)
-                    chunks = [
-                        potential_edges[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n_workers)
-                    ]
+                    chunk_size = len(potential_edges) // n_workers
+                    chunks = [potential_edges[i : i + chunk_size] for i in range(0, len(potential_edges), chunk_size)]
                     results_nested = parallel(
                         delayed(
                             lambda chunk: [
@@ -516,9 +514,9 @@ class GES(BaseCausalDiscovery):
                 deletion_ops = []
 
                 if use_parallel:
-                    k, m = divmod(len(potential_removals), n_workers)
+                    chunk_size = len(potential_removals) // n_workers
                     chunks = [
-                        potential_removals[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n_workers)
+                        potential_removals[i : i + chunk_size] for i in range(0, len(potential_removals), chunk_size)
                     ]
                     results_nested = parallel(
                         delayed(
@@ -558,10 +556,8 @@ class GES(BaseCausalDiscovery):
                 turn_ops = []
 
                 if use_parallel and potential_turns:
-                    k, m = divmod(len(potential_turns), n_workers)
-                    chunks = [
-                        potential_turns[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n_workers)
-                    ]
+                    chunk_size = len(potential_turns) // n_workers
+                    chunks = [potential_turns[i : i + chunk_size] for i in range(0, len(potential_turns), chunk_size)]
                     results_nested = parallel(
                         delayed(
                             lambda chunk: [
