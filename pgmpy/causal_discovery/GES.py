@@ -447,13 +447,14 @@ class GES(BaseCausalDiscovery):
 
         # Initialization of the parallelization if n_jobs provided
         use_parallel = self.n_jobs != 1
+        n_workers = self.n_jobs
 
         # Step 1.2: Initialize the starting PDAG
         current_model = PDAG()
         current_model.add_nodes_from(self.variables_)
 
         # The parallelization pool created once, reused across all iterations of all three phases:
-        parallel_ctx = Parallel(n_jobs=self.n_jobs, backend="threading") if use_parallel else nullcontext()
+        parallel_ctx = Parallel(n_jobs=n_workers, backend="threading") if use_parallel else nullcontext()
 
         with parallel_ctx as parallel:
             # Step 2: Forward phase. Iteratively add edges till score stops improving.
@@ -474,10 +475,19 @@ class GES(BaseCausalDiscovery):
                 insertion_ops = []
 
                 if use_parallel:
-                    results = parallel(
-                        delayed(self._score_insert)(current_model, score_fn, ordered_tuple, u, v)
-                        for u, v in potential_edges
+                    k, m = divmod(len(potential_edges), n_workers)
+                    chunks = [
+                        potential_edges[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n_workers)
+                    ]
+                    results_nested = parallel(
+                        delayed(
+                            lambda chunk: [
+                                self._score_insert(current_model, score_fn, ordered_tuple, u, v) for u, v in chunk
+                            ]
+                        )(chunk)
+                        for chunk in chunks
                     )
+                    results = [item for sublist in results_nested for item in sublist]
                     for idx, (sd, op) in enumerate(results):
                         score_deltas[idx] = sd
                         insertion_ops.append(op)
@@ -506,10 +516,19 @@ class GES(BaseCausalDiscovery):
                 deletion_ops = []
 
                 if use_parallel:
-                    results = parallel(
-                        delayed(self._score_delete)(current_model, score_fn, ordered_tuple, u, v)
-                        for u, v in potential_removals
+                    k, m = divmod(len(potential_removals), n_workers)
+                    chunks = [
+                        potential_removals[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n_workers)
+                    ]
+                    results_nested = parallel(
+                        delayed(
+                            lambda chunk: [
+                                self._score_delete(current_model, score_fn, ordered_tuple, u, v) for u, v in chunk
+                            ]
+                        )(chunk)
+                        for chunk in chunks
                     )
+                    results = [item for sublist in results_nested for item in sublist]
                     for idx, (sd, op) in enumerate(results):
                         score_deltas[idx] = sd
                         deletion_ops.append(op)
@@ -538,11 +557,20 @@ class GES(BaseCausalDiscovery):
                 score_deltas = np.zeros(len(potential_turns))
                 turn_ops = []
 
-                if use_parallel:
-                    results = parallel(
-                        delayed(self._score_turn)(current_model, score_fn, ordered_tuple, u, v)
-                        for u, v in potential_turns
+                if use_parallel and potential_turns:
+                    k, m = divmod(len(potential_turns), n_workers)
+                    chunks = [
+                        potential_turns[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n_workers)
+                    ]
+                    results_nested = parallel(
+                        delayed(
+                            lambda chunk: [
+                                self._score_turn(current_model, score_fn, ordered_tuple, u, v) for u, v in chunk
+                            ]
+                        )(chunk)
+                        for chunk in chunks
                     )
+                    results = [item for sublist in results_nested for item in sublist]
                     for idx, (sd, op) in enumerate(results):
                         score_deltas[idx] = sd
                         turn_ops.append(op)
