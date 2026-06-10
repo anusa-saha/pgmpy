@@ -32,7 +32,7 @@ class GES(BaseCausalDiscovery):
     The implementation follows Chickering's operator-based formulation of GES
     and applies insert, delete, and turn operators directly on CPDAGs while
     maintaining equivalence-class consistency and also facilitates parallelization
-    and an optional degree constrint applied during forward phase.
+    and an optional degree constraint applied during forward phase.
 
     Parameters
     ----------
