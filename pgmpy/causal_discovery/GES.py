@@ -1,5 +1,5 @@
 from collections.abc import Hashable, Iterable
-from itertools import combinations
+from itertools import permutations
 from typing import Any
 
 import networkx as nx
@@ -55,6 +55,11 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         are not considered as candidate edge additions or
         orientations, reducing the search space explored by GES.
 
+    max_indegree : int or None, default=None
+        If provided, the procedure only searches among models where all nodes
+        have at most `max_indegree` parents. This can significantly reduce
+        the search space and computation time for large graphs.
+
     Attributes
     ----------
     causal_graph_ : DAG or PDAG
@@ -102,11 +107,18 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         return_type: str = "pdag",
         min_improvement: float = 1e-6,
         expert_knowledge: ExpertKnowledge | None = None,
+        max_indegree: int | None = None,
     ):
         self.scoring_method = scoring_method
         self.return_type = return_type
         self.min_improvement = min_improvement
         self.expert_knowledge = expert_knowledge
+        self.max_indegree = max_indegree
+        if max_indegree is not None:
+            if not isinstance(max_indegree, int) or max_indegree < 0:
+                raise ValueError(
+                    f"max_indegree must be a non-negative integer. Got: {max_indegree}"
+                )
 
     def _separates(
         self,
@@ -266,21 +278,19 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
             expert_knowledge = self.expert_knowledge
 
         # Step 1.3.1: If search_space or screening_method in expert_knowledge is not None, limit the search space
-        if (
-            expert_knowledge.search_space
-            or expert_knowledge.screening_method is not None
-        ):
+        if expert_knowledge.search_space or expert_knowledge.screening_method is not None:
             expert_knowledge.limit_search_space(X)
+
+        # Candidate insertions that are not excluded by expert knowledge.
+        candidate_edges = sorted(set(permutations(self.variables_, 2)) - expert_knowledge.forbidden_edges)
         
         # Step 2: Forward phase. Iteratively add edges till score stops improving.
         while True:
             potential_edges = []
-            for u, v in combinations(sorted(current_model.nodes()), 2):
-                if not current_model.has_edge(u, v) and not current_model.has_edge(v, u):
-                    if (u, v) not in expert_knowledge.forbidden_edges:
-                        potential_edges.append((u, v))
-                    if (v, u) not in expert_knowledge.forbidden_edges:
-                        potential_edges.append((v, u))
+            for u, v in candidate_edges:
+                if current_model.has_edge(u, v) or current_model.has_edge(v,u):
+                    continue
+                potential_edges.append((u, v))
 
             score_deltas = np.zeros(len(potential_edges))
             insertion_ops: list[tuple[float, Any, Any, set[Any]] | None] = []
@@ -320,6 +330,9 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
                         parents_v = current_model.directed_parents(v)
                         new_parents = ordered_tuple(na_vuT | parents_v | {u}, current_model)
                         old_parents = ordered_tuple(na_vuT | parents_v, current_model)
+                        # Enforce the maximum indegree constraint on the parent set produced by the insert operator.
+                        if self.max_indegree is not None and len(new_parents) > self.max_indegree:
+                            continue
                         score_delta = score_fn(v, new_parents) - score_fn(v, old_parents)
                         valid_insert_ops.append((score_delta, u, v, T))
 
@@ -428,9 +441,17 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
                             parents_v = current_model.directed_parents(v)
                             parents_u = current_model.directed_parents(u)
 
-                            new_score = score_fn(v, ordered_tuple(parents_v | C | {u}, current_model)) + score_fn(
-                                u, ordered_tuple(parents_u | (C & na_vu), current_model)
-                            )
+                            new_parents_v = ordered_tuple(parents_v | C | {u}, current_model)
+                            new_parents_u = ordered_tuple(parents_u | (C & na_vu), current_model)
+                            if (
+                                self.max_indegree is not None
+                                and (
+                                    len(new_parents_v) > self.max_indegree
+                                    or len(new_parents_u) > self.max_indegree
+                                )
+                            ):
+                                continue
+                            new_score = score_fn(v, new_parents_v) + score_fn(u, new_parents_u)
                             old_score = score_fn(v, ordered_tuple(parents_v | C, current_model)) + score_fn(
                                 u, ordered_tuple(parents_u | (C & na_vu) | {v}, current_model)
                             )
@@ -471,6 +492,16 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
                             parents_v = current_model.directed_parents(v)
                             parents_u = current_model.directed_parents(u)
 
+                            new_parents_v = ordered_tuple(C | parents_v | {u}, current_model)
+                            new_parents_u = ordered_tuple(parents_u - {v}, current_model)
+                            if (
+                                self.max_indegree is not None
+                                and (
+                                    len(new_parents_v) > self.max_indegree
+                                    or len(new_parents_u) > self.max_indegree
+                                )
+                            ):
+                                continue
                             new_score = score_fn(v, ordered_tuple(C | parents_v | {u}, current_model)) + score_fn(
                                 u, ordered_tuple(parents_u - {v}, current_model)
                             )
