@@ -62,9 +62,13 @@ class CVLikelihood(BaseStructureScore):
     >>> data = pd.DataFrame({"A": A, "B": B, "C": C})
     >>> score = CVLikelihood(data)
     >>> print(score.local_score("B", ()))
+    -51.182
     >>> print(score.local_score("B", ("C",)))
+    -51.828
     >>> print(score.local_score("B", ("A",)))
+    44.645
     >>> print(score.local_score("B", ("A", "C")))
+    38.029
 
     """
     _tags = {
