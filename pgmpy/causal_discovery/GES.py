@@ -1,6 +1,7 @@
 from collections.abc import Hashable, Iterable
 from itertools import permutations
 from typing import Any
+from sklearn.base import clone
 
 import networkx as nx
 import numpy as np
@@ -275,14 +276,13 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         if self.expert_knowledge is None:
             expert_knowledge = ExpertKnowledge()
         else:
-            expert_knowledge = self.expert_knowledge
+            # Clone so the fitted (`*_`) attributes land on a fresh copy, not the user's object.
+            expert_knowledge = clone(self.expert_knowledge)
 
-        # Step 1.3.1: If search_space or screening_method in expert_knowledge is not None, limit the search space
-        if expert_knowledge.search_space or expert_knowledge.screening_method is not None:
-            expert_knowledge.limit_search_space(X)
+        expert_knowledge.fit(X)
 
         # Candidate insertions that are not excluded by expert knowledge.
-        candidate_edges = sorted(set(permutations(self.variables_, 2)) - expert_knowledge.forbidden_edges)
+        candidate_edges = sorted(set(permutations(self.variables_, 2)) - expert_knowledge.forbidden_edges_)
         
         # Step 2: Forward phase. Iteratively add edges till score stops improving.
         while True:
@@ -407,7 +407,7 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         while True:
             potential_turns = []
             for u, v in sorted(current_model.edges()):
-                if (v, u) not in expert_knowledge.forbidden_edges:
+                if (v, u) not in expert_knowledge.forbidden_edges_:
                     potential_turns.append((v, u))
 
             score_deltas = np.zeros(len(potential_turns))
