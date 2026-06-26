@@ -1,17 +1,18 @@
 from collections.abc import Hashable, Iterable
 from itertools import permutations
 from typing import Any
-from sklearn.base import clone
 
 import networkx as nx
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 
 from pgmpy.base import PDAG
 from pgmpy.causal_discovery import ExpertKnowledge
 from pgmpy.causal_discovery._base import BaseCausalDiscovery, _ScoreMixin
 from pgmpy.structure_score import BaseStructureScore, get_scoring_method
 from pgmpy.utils.mathext import powerset
+
 
 class GES(_ScoreMixin, BaseCausalDiscovery):
     """
@@ -115,11 +116,6 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         self.min_improvement = min_improvement
         self.expert_knowledge = expert_knowledge
         self.max_indegree = max_indegree
-        if max_indegree is not None:
-            if not isinstance(max_indegree, int) or max_indegree < 0:
-                raise ValueError(
-                    f"max_indegree must be a non-negative integer. Got: {max_indegree}"
-                )
 
     def _separates(
         self,
@@ -258,6 +254,9 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
             Returns the instance with the fitted attributes.
         """
         self.variables_ = list(X.columns)
+        if self.max_indegree is not None:
+            if not isinstance(self.max_indegree, int) or self.max_indegree < 0:
+                raise ValueError(f"max_indegree must be a non-negative integer. Got: {self.max_indegree}")
 
         def ordered_tuple(nodes: Iterable[Any], model: PDAG) -> tuple[Any, ...]:
             node_set = set(nodes)
@@ -281,14 +280,17 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
 
         expert_knowledge.fit(X)
 
+        current_model.add_edges_from(expert_knowledge.required_edges_)
+        current_model = current_model.to_cpdag()
+
         # Candidate insertions that are not excluded by expert knowledge.
         candidate_edges = sorted(set(permutations(self.variables_, 2)) - expert_knowledge.forbidden_edges_)
-        
+
         # Step 2: Forward phase. Iteratively add edges till score stops improving.
         while True:
             potential_edges = []
             for u, v in candidate_edges:
-                if current_model.has_edge(u, v) or current_model.has_edge(v,u):
+                if current_model.has_edge(u, v) or current_model.has_edge(v, u):
                     continue
                 potential_edges.append((u, v))
 
@@ -356,7 +358,11 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
 
         # Step 3: Backward phase. Iteratively remove edges till score stops improving.
         while True:
-            potential_removals = self._legal_edge_deletions(current_model)
+            potential_removals = [
+                edge
+                for edge in self._legal_edge_deletions(current_model)
+                if edge not in expert_knowledge.required_edges_
+            ]
             score_deltas = np.zeros(len(potential_removals))
             deletion_ops: list[tuple[float, Any, Any, set[Any]] | None] = []
 
@@ -407,7 +413,7 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         while True:
             potential_turns = []
             for u, v in sorted(current_model.edges()):
-                if (v, u) not in expert_knowledge.forbidden_edges_:
+                if (v, u) not in expert_knowledge.forbidden_edges_ and (u, v) not in expert_knowledge.required_edges_:
                     potential_turns.append((v, u))
 
             score_deltas = np.zeros(len(potential_turns))
@@ -443,12 +449,8 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
 
                             new_parents_v = ordered_tuple(parents_v | C | {u}, current_model)
                             new_parents_u = ordered_tuple(parents_u | (C & na_vu), current_model)
-                            if (
-                                self.max_indegree is not None
-                                and (
-                                    len(new_parents_v) > self.max_indegree
-                                    or len(new_parents_u) > self.max_indegree
-                                )
+                            if self.max_indegree is not None and (
+                                len(new_parents_v) > self.max_indegree or len(new_parents_u) > self.max_indegree
                             ):
                                 continue
                             new_score = score_fn(v, new_parents_v) + score_fn(u, new_parents_u)
@@ -494,12 +496,8 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
 
                             new_parents_v = ordered_tuple(C | parents_v | {u}, current_model)
                             new_parents_u = ordered_tuple(parents_u - {v}, current_model)
-                            if (
-                                self.max_indegree is not None
-                                and (
-                                    len(new_parents_v) > self.max_indegree
-                                    or len(new_parents_u) > self.max_indegree
-                                )
+                            if self.max_indegree is not None and (
+                                len(new_parents_v) > self.max_indegree or len(new_parents_u) > self.max_indegree
                             ):
                                 continue
                             new_score = score_fn(v, ordered_tuple(C | parents_v | {u}, current_model)) + score_fn(
