@@ -528,6 +528,15 @@ class PDAG(_GraphRolesMixin, nx.DiGraph):
         >>> sorted(dag.edges())
         [('A', 'B'), ('C', 'B'), ('D', 'A'), ('D', 'C')]
 
+        >>> from pgmpy.causal_discovery import ExpertKnowledge
+        >>> import pandas as pd
+        >>> expert_knowledge = ExpertKnowledge(forbidden_edges=[("D", "A")], required_edges=[("D", "C")])
+        >>> expert_knowledge.fit(pd.DataFrame(columns=["A", "B", "C", "D"]))
+        Expert Knowledge: 1 required edges, 1 forbidden edges, temporal order on 0 nodes, and 0 search space edges
+        >>> dag = pdag.to_dag(expert_knowledge=expert_knowledge)
+        >>> sorted(dag.edges())
+        [('A', 'B'), ('A', 'D'), ('C', 'B'), ('D', 'C')]
+
         References
         ----------
         - :cite:p:`dor_tarsi_1992`
