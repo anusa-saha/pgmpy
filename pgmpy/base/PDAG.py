@@ -503,9 +503,16 @@ class PDAG(_GraphRolesMixin, nx.DiGraph):
 
         return cpdag
 
-    def to_dag(self):
+    def to_dag(self, expert_knowledge=None):
         """
         Returns one possible DAG which is represented using the PDAG.
+
+        Parameters
+        ----------
+        expert_knowledge : ExpertKnowledge, optional
+            Fitted expert knowledge used to constrain the orientation of
+            undirected edges during DAG extension. Required and forbidden
+            edge constraints are respected when selecting edge orientations.
 
         Returns
         -------
@@ -551,6 +558,12 @@ class PDAG(_GraphRolesMixin, nx.DiGraph):
                 )
 
                 if not pdag.directed_children(X) and (not undirected_neighbors or neighbors_are_adjacent):
+                    # Respect expert knowledge when orienting undirected edges.
+                    if expert_knowledge is not None:
+                        if any((Y, X) in expert_knowledge.forbidden_edges_ for Y in undirected_neighbors):
+                            continue
+                        if any((X, Y) in expert_knowledge.required_edges_ for Y in undirected_neighbors):
+                            continue
                     found = True
                     # add all edges of X as outgoing edges to dag
                     for Y in pdag.undirected_neighbors(X):
