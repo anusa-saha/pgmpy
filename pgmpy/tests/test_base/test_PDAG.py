@@ -431,7 +431,6 @@ class TestPDAG(unittest.TestCase):
         }
         self.assertSetEqual(set(dag.edges), dag_actual)
 
-
     def test_expert_knowledge_to_dag(self):
         pdag = PDAG(
             directed_ebunch=[("A", "B"), ("C", "B")],
