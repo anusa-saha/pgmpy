@@ -1,6 +1,9 @@
 import unittest
 
+import pandas as pd
+
 from pgmpy.base import DAG, PDAG
+from pgmpy.causal_discovery import ExpertKnowledge
 
 
 class TestPDAG(unittest.TestCase):
@@ -427,6 +430,35 @@ class TestPDAG(unittest.TestCase):
             (5, 4),
         }
         self.assertSetEqual(set(dag.edges), dag_actual)
+
+    def test_expert_knowledge_to_dag(self):
+        pdag = PDAG(
+            directed_ebunch=[("A", "B"), ("C", "B")],
+            undirected_ebunch=[("C", "D"), ("D", "A")],
+        )
+
+        expertknowledge = ExpertKnowledge(
+            search_space=[("A", "B"), ("C", "B"), ("D", "C"), ("A", "D")],
+            required_edges=[("D", "C")],
+            forbidden_edges=[("D", "A")],
+        )
+        expertknowledge.fit(pd.DataFrame(columns=["A", "B", "C", "D"]))
+
+        dag = pdag.to_dag(expert_knowledge=expertknowledge)
+
+        # Required edge
+        self.assertIn(("D", "C"), dag.edges())
+        self.assertNotIn(("C", "D"), dag.edges())
+
+        # Forbidden edge
+        self.assertIn(("A", "D"), dag.edges())
+        self.assertNotIn(("D", "A"), dag.edges())
+
+        # Search space
+        self.assertIn(("D", "C"), dag.edges())
+        self.assertIn(("A", "D"), dag.edges())
+        self.assertNotIn(("C", "D"), dag.edges())
+        self.assertNotIn(("D", "A"), dag.edges())
 
     def test_pdag_to_cpdag(self):
         pdag = PDAG(directed_ebunch=[("A", "B")], undirected_ebunch=[("B", "C")])
