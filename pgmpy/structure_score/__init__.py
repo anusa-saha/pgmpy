@@ -11,7 +11,7 @@ from .k2 import K2
 from .log_likelihood import LogLikelihood
 from .log_likelihood_cond_gauss import LogLikelihoodCondGauss
 from .log_likelihood_gauss import LogLikelihoodGauss
-from .rkhs_cv_likelihood import CVLikelihood
+from .rkhs_cv_likelihood import CrossValidatedRKHSLikelihood
 from .rkhs_likelihood import RKHSLikelihood
 
 __all__ = [

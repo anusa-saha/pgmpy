@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.model_selection import KFold
 
-from pgmpy.structure_score._base import RKHSLikelihood
+from pgmpy.structure_score import RKHSLikelihood
 
 
 class CrossValidatedRKHSLikelihood(RKHSLikelihood):
