@@ -196,8 +196,6 @@ class TestGESCore:
         expert_knowledge = ExpertKnowledge(search_space=search_space)
         est = GES(scoring_method="k2", expert_knowledge=expert_knowledge, return_type="dag")
         est.fit(titanic_data_categorical)
-        print(est.causal_graph_.directed_edges)
-        print(est.causal_graph_.undirected_edges)
         for edge in est.causal_graph_.edges():
             assert edge in search_space
 

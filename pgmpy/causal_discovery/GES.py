@@ -531,7 +531,7 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         current_model = current_model.to_cpdag()
 
         if self.return_type.lower() == "dag":
-            self.causal_graph_ = current_model.to_dag()
+            self.causal_graph_ = current_model.to_dag(expert_knowledge=expert_knowledge)
         elif self.return_type.lower() == "pdag":
             self.causal_graph_ = current_model
         else:
