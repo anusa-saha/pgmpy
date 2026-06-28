@@ -25,7 +25,7 @@ class RKHSLikelihood(BaseStructureScore):
         n = K.shape[0]
         H = np.eye(n) - np.ones((n, n)) / n
         return H @ K @ H
-    
+
     def _log_likelihood(self, K_x, K_z):
         n = K_x.shape[0]
         ridge = K_z + n * self.alpha * np.eye(n)
