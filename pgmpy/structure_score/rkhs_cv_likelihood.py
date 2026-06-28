@@ -41,17 +41,27 @@ class CrossValidatedRKHSLikelihood(RKHSLikelihood):
         """
         CV log-likelihood: fit on training fold, evaluate on test fold (Eq. 8 / Appendix A2).
         """
+        # Predict training
         ridge = K_z_train + n_train * self.alpha * np.eye(n_train)
-        W = np.linalg.solve(ridge, K_x_train)
+        kernel_regression = np.linalg.solve(ridge, K_z_train)
+        F_hat_train = K_x_train @ kernel_regression
 
-        F_hat_test = K_z_test @ W
+        # Training residuals
+        residuals = K_x_train - F_hat_train
+        residual_cov_train = residuals @ residuals.T / n_train
 
+        _, logdet = np.linalg.slogdet(residual_cov_train)
+
+        # Predict test
+        F_hat_test = K_z_test @ np.linalg.solve(ridge, K_x_train)
+
+        # Test residuals
         residual_test = K_x_test - F_hat_test
-        residual_cov_test = residual_test.T @ residual_test / n_test
 
-        _, logdet = np.linalg.slogdet(residual_cov_test)
+        trace_matrix = residual_cov_train + self.alpha * np.eye(n_train)
+        quad = np.trace(residual_test.T @ np.linalg.solve(trace_matrix, residual_test))
 
-        return -(n_test * n_train / 2.0) * np.log(2 * np.pi) - (n_test / 2.0) * logdet - (n_test / 2.0)
+        return -(n_test**2 / 2.0) * np.log(2 * np.pi) - (n_test / 2.0) * logdet - (n_test / 2.0) * quad
 
     def _local_score(self, variable: str, parents: tuple[str, ...]) -> float:
         kf = KFold(n_splits=self.fold, shuffle=True, random_state=self.random_state)
