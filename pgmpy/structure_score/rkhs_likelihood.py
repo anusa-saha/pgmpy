@@ -25,7 +25,7 @@ class RKHSLikelihood(BaseStructureScore):
         n = K.shape[0]
         H = np.eye(n) - np.ones((n, n)) / n
         return H @ K @ H
-
+    
     def _log_likelihood(self, K_x, K_z):
         n = K_x.shape[0]
         ridge = K_z + n * self.alpha * np.eye(n)
@@ -39,7 +39,7 @@ class RKHSLikelihood(BaseStructureScore):
 
         return -(n**2 / 2.0) * np.log(2 * np.pi) - (n / 2.0) * logdet - (n / 2.0)
 
-    def _get_kernel_matrices(self, variable, parents):
+    def _local_score(self, variable, parents):
         y = self._np_data[:, self._col_index[variable]].reshape(-1, 1)
         K_x = self._kernel_matrix(y)
         if parents:
@@ -47,8 +47,4 @@ class RKHSLikelihood(BaseStructureScore):
             K_z = self._kernel_matrix(X)
         else:
             K_z = np.zeros_like(K_x)
-        return K_x, K_z
-
-    def _local_score(self, variable, parents):
-        K_x, K_z = self._get_kernel_matrices(variable, parents)
         return self._log_likelihood(K_x, K_z)
