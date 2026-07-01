@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics.pairwise import pairwise_kernels
+from sklearn.gaussian_process.kernels import RBF, Kernel
 
 from pgmpy.structure_score._base import BaseStructureScore
 
@@ -12,16 +12,19 @@ class RKHSLikelihood(BaseStructureScore):
         "is_parameteric": False,
     }
 
-    def __init__(self, data, state_names=None, kernel="rbf", gamma=None, alpha=1.0, max_cache_size=10000):
+    def __init__(self, data, state_names=None, kernel=None, alpha=1.0, max_cache_size=10000):
         super().__init__(data=data, state_names=state_names, max_cache_size=max_cache_size)
         self._np_data = self.data.to_numpy()
         self._col_index = {col: i for i, col in enumerate(self.data.columns)}
+        if kernel is None:
+            kernel = RBF()
+        if not isinstance(kernel, Kernel):
+            raise TypeError("kernel must be an instance of sklearn.gaussian_process.kernels.Kernel")
         self.kernel = kernel
-        self.gamma = gamma
         self.alpha = alpha
 
     def _kernel_matrix(self, X):
-        K = pairwise_kernels(X, metric=self.kernel, gamma=self.gamma)
+        K = self.kernel(X)
         n = K.shape[0]
         H = np.eye(n) - np.ones((n, n)) / n
         return H @ K @ H
