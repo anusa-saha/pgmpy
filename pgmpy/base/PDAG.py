@@ -127,27 +127,44 @@ class PDAG(_CoreGraph):
 
     def apply_meeks_rules(self, apply_r4=False, inplace=False, debug=False):
         """
-        Applies Meek's rules to orient the undirected edges of the PDAG, returning a (maximally
-        oriented) CPDAG.
+        Returns one possible DAG represented by this PDAG.
+
+        If ``expert_knowledge`` is provided, the algorithm respects the fitted
+        required and forbidden edge constraints while constructing the DAG
+        extension whenever possible. Candidate removable nodes whose forced
+        orientations would violate these constraints are skipped.
 
         Parameters
         ----------
-        apply_r4 : bool (default: False)
-            If True, applies Rules 1-4; otherwise only Rules 1-3.
+        expert_knowledge : ExpertKnowledge, optional (default=None)
+            A fitted ``ExpertKnowledge`` instance containing the resolved
+            ``required_edges_`` and ``forbidden_edges_`` constraints. If
+            ``None``, the method behaves identically to the standard
+            Dor-Tarsi algorithm.
 
-        inplace : bool (default: False)
-            If True, modify this PDAG and return None; otherwise return a modified copy.
-
-        debug : bool (default: False)
-            If True, log the rules being applied.
+        Returns
+        -------
+        pgmpy.base.DAG
+            A DAG extension of the PDAG.
 
         Examples
         --------
+        >>> import pandas as pd
         >>> from pgmpy.base import PDAG
-        >>> pdag = PDAG(edge_list=[("A", "B", "->"), ("B", "C", "--")])
-        >>> pdag = pdag.apply_meeks_rules()
-        >>> sorted(pdag.directed_edges)
-        [('A', 'B'), ('B', 'C')]
+        >>> from pgmpy.causal_discovery import ExpertKnowledge
+
+        >>> pdag = PDAG(edge_list=[("A", "B", "->"), ("C", "B", "->"), ("C", "D", "--"), ("D", "A", "--")])
+        >>> expert = ExpertKnowledge( required_edges=[("D", "C")], forbidden_edges=[("D", "A")])
+        >>> _ = expert.fit(pd.DataFrame(columns=["A", "B", "C", "D"])) 
+        >>> dag = pdag.to_dag(expert_knowledge=expert)
+        >>> ("D", "C") in dag.edges()
+        True
+        >>> ("D", "A") in dag.edges()
+        False
+
+        References
+        ----------
+        - :cite:p:`dor_tarsi_1992`
         """
         pdag = self if inplace else self.copy()
 
