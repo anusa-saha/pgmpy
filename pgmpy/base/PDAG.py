@@ -238,25 +238,9 @@ class PDAG(_CoreGraph):
         """
         Returns one possible DAG represented by this PDAG.
 
-        Parameters
-        ----------
-        expert_knowledge : ExpertKnowledge, optional
-            Fitted expert knowledge used to constrain the orientation of
-            undirected edges during DAG extension. Required and forbidden
-            edge constraints are respected when selecting edge orientations.
-
         Returns
         -------
         pgmpy.base.DAG
-
-        >>> from pgmpy.causal_discovery import ExpertKnowledge
-        >>> import pandas as pd
-        >>> expert_knowledge = ExpertKnowledge(forbidden_edges=[("D", "A")], required_edges=[("D", "C")])
-        >>> expert_knowledge.fit(pd.DataFrame(columns=["A", "B", "C", "D"]))
-        Expert Knowledge: 1 required edges, 1 forbidden edges, temporal order on 0 nodes, and 0 search space edges
-        >>> dag = pdag.to_dag(expert_knowledge=expert_knowledge)
-        >>> sorted(dag.edges())
-        [('A', 'B'), ('A', 'D'), ('C', 'B'), ('D', 'C')]
 
         References
         ----------
@@ -270,6 +254,8 @@ class PDAG(_CoreGraph):
         dag.latents = self.latents
 
         pdag = self.copy()
+        required_edges = expert_knowledge.required_edges_ if expert_knowledge is not None else set()
+        forbidden_edges = expert_knowledge.forbidden_edges_ if expert_knowledge is not None else set()
         while pdag.number_of_nodes() > 0:
             # Find a node with no directed outgoing edge whose undirected neighbours are either empty
             # or whose undirected neighbours + neighbours are mutually adjacent.
@@ -280,13 +266,12 @@ class PDAG(_CoreGraph):
                     pdag.has_edge(y, z) for z in pdag.get_neighbors(x) for y in undirected_neighbors if not y == z
                 )
 
-                if not pdag.directed_children(X) and (not undirected_neighbors or neighbors_are_adjacent):
-                    # Respect expert knowledge when orienting undirected edges.
-                    if expert_knowledge is not None:
-                        if any((Y, X) in expert_knowledge.forbidden_edges_ for Y in undirected_neighbors):
-                            continue
-                        if any((X, Y) in expert_knowledge.required_edges_ for Y in undirected_neighbors):
-                            continue
+                if not pdag.get_children(x) and (not undirected_neighbors or neighbors_are_adjacent):
+                    violates_constraints = any(
+                        (x, y) in required_edges or (y, x) in forbidden_edges for y in undirected_neighbors
+                    )
+                    if violates_constraints:
+                        continue
                     found = True
                     for y in pdag.get_neighbors(x, "--"):
                         dag.add_edge(y, x)

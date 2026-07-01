@@ -1,6 +1,5 @@
-import pytest
-
 import pandas as pd
+import pytest
 
 from pgmpy.base import DAG, PDAG
 from pgmpy.causal_discovery import ExpertKnowledge
@@ -327,11 +326,7 @@ class TestPDAG:
         assert set(dag.edges()) == dag_actual
 
     def test_expert_knowledge_to_dag(self):
-        pdag = PDAG(
-            directed_ebunch=[("A", "B"), ("C", "B")],
-            undirected_ebunch=[("C", "D"), ("D", "A")],
-        )
-
+        pdag = PDAG(edge_list=[("A", "B", "->"), ("C", "B", "->"), ("C", "D", "--"), ("D", "A", "--")])
         expertknowledge = ExpertKnowledge(
             search_space=[("A", "B"), ("C", "B"), ("D", "C"), ("A", "D")],
             required_edges=[("D", "C")],
@@ -342,18 +337,18 @@ class TestPDAG:
         dag = pdag.to_dag(expert_knowledge=expertknowledge)
 
         # Required edge
-        self.assertIn(("D", "C"), dag.edges())
-        self.assertNotIn(("C", "D"), dag.edges())
+        assert ("D", "C") in dag.edges()
+        assert ("C", "D") not in dag.edges()
 
         # Forbidden edge
-        self.assertIn(("A", "D"), dag.edges())
-        self.assertNotIn(("D", "A"), dag.edges())
+        assert ("A", "D") in dag.edges()
+        assert ("D", "A") not in dag.edges()
 
         # Search space
-        self.assertIn(("D", "C"), dag.edges())
-        self.assertIn(("A", "D"), dag.edges())
-        self.assertNotIn(("C", "D"), dag.edges())
-        self.assertNotIn(("D", "A"), dag.edges())
+        assert ("D", "C") in dag.edges()
+        assert ("A", "D") in dag.edges()
+        assert ("C", "D") not in dag.edges()
+        assert ("D", "A") not in dag.edges()
 
     def test_pdag_to_cpdag(self):
         pdag = PDAG(edge_list=[("A", "B", "->"), ("B", "C", "--")])
