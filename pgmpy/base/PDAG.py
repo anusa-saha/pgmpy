@@ -155,7 +155,7 @@ class PDAG(_CoreGraph):
 
         >>> pdag = PDAG(edge_list=[("A", "B", "->"), ("C", "B", "->"), ("C", "D", "--"), ("D", "A", "--")])
         >>> expert = ExpertKnowledge( required_edges=[("D", "C")], forbidden_edges=[("D", "A")])
-        >>> _ = expert.fit(pd.DataFrame(columns=["A", "B", "C", "D"])) 
+        >>> _ = expert.fit(pd.DataFrame(columns=["A", "B", "C", "D"]))
         >>> dag = pdag.to_dag(expert_knowledge=expert)
         >>> ("D", "C") in dag.edges()
         True
