@@ -5,9 +5,9 @@ from .GES import GES
 from .HillClimbSearch import HillClimbSearch
 from .LLMPairwise import LLMPairwise
 from .PC import PC
+from .SP import SP
 from .TAN import TAN
 from .TOPIC import TOPIC
-from .SP import SP
 
 __all__ = [
     "ChowLiu",

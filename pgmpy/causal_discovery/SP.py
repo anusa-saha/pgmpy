@@ -47,6 +47,25 @@ class SP(BaseCausalDiscovery):
     feature_names_in_ : np.ndarray
         The feature names in the data used to learn the causal graph.
 
+    Examples
+    --------
+    Simulate some data to use for causal discovery:
+
+    >>> import numpy as np
+    >>> rng = np.random.default_rng(42)
+    >>> df = pd.DataFrame(rng.normal(size=(200, 4)), columns=["A", "B", "C", "D"])
+
+    Use the SP algorithm to learn the causal structure from data:
+
+    >>> from pgmpy.causal_discovery import SP
+    >>> sp = SP(ci_test="pearsonr")
+    >>> sp.fit(df)
+    SP(ci_test='pearsonr')
+    >>> sp.causal_graph_  # doctest: +ELLIPSIS
+    <pgmpy.base.DAG.DAG object at 0x...>
+    >>> sp.n_features_in_
+    4
+
     References
     ----------
     Garvesh Raskutti and Caroline Uhler.
