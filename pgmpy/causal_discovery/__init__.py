@@ -7,6 +7,7 @@ from .LLMPairwise import LLMPairwise
 from .PC import PC
 from .TAN import TAN
 from .TOPIC import TOPIC
+from .SP import SP
 
 __all__ = [
     "ChowLiu",
@@ -18,4 +19,5 @@ __all__ = [
     "PC",
     "TAN",
     "TOPIC",
+    "SP",
 ]
