@@ -38,7 +38,7 @@ class SP(BaseCausalDiscovery):
     adjacency_matrix_ : pd.DataFrame
         Adjacency matrix representation of the learned causal graph.
 
-    all_optimal_permutations_ : list[tuple]
+    optimal_permutations_ : list[tuple]
         All permutations that produce a DAG with the minimum number of edges.
 
     n_features_in_ : int
@@ -104,20 +104,20 @@ class SP(BaseCausalDiscovery):
         dag = DAG()
         dag.add_nodes_from(permutation)
 
-        for child_idx, child in enumerate(permutation):
-            predecessors = permutation[:child_idx]
+        for node_idx, node in enumerate(permutation):
+            predecessors = permutation[:node_idx]
             if not predecessors:
                 continue
-            for parent in predecessors:
-                conditioning_set = [node for node in predecessors if node != parent]
+            for predecessor in predecessors:
+                conditioning_nodes = [pred for pred in predecessors if pred != predecessor]
                 independent = self.ci_test_(
-                    X=parent,
-                    Y=child,
-                    Z=conditioning_set,
+                    X=predecessor,
+                    Y=node,
+                    Z=conditioning_nodes,
                     significance_level=self.significance_level,
                 )
                 if not independent:
-                    dag.add_edge(parent, child)
+                    dag.add_edge(predecessor, node)
         return dag
 
     def _fit(self, X: pd.DataFrame):
@@ -135,24 +135,24 @@ class SP(BaseCausalDiscovery):
             Returns the instance with the fitted attributes.
         """
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
-        variables = list(X.columns)
+        nodes = list(X.columns)
 
         min_edges = np.inf
-        best_permutation = None
+        best_ordering = None
         optimal_permutations = []
 
-        for permutation in permutations(variables):
+        for permutation in permutations(nodes):
             dag = self._build_dag(permutation)
-            num_edges = dag.number_of_edges()
-            if num_edges < min_edges:
-                min_edges = num_edges
-                best_permutation = permutation
+            n_edges = dag.number_of_edges()
+            if n_edges < min_edges:
+                min_edges = n_edges
+                best_ordering = permutation
                 optimal_permutations = [permutation]
-            elif num_edges == min_edges:
+            elif n_edges == min_edges:
                 optimal_permutations.append(permutation)
 
-        self.all_optimal_permutations_ = optimal_permutations
-        self.causal_graph_ = self._build_dag(best_permutation)
+        self.optimal_permutations_ = optimal_permutations
+        self.causal_graph_ = self._build_dag(best_ordering)
         self.adjacency_matrix_ = self.causal_graph_.to_adjacency(
             encoding="binary", nodelist=list(self.causal_graph_.nodes())
         )
