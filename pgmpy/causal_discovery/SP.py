@@ -30,6 +30,10 @@ class SP(BaseCausalDiscovery):
     significance_level : float, default=0.01
         Significance level used by the conditional independence test.
 
+    max_iter : int or None, default=None
+        Maximum number of permutations to evaluate. If None, all possible
+        permutations are considered.
+
     Attributes
     ----------
     causal_graph_ : pgmpy.base.DAG
@@ -78,9 +82,11 @@ class SP(BaseCausalDiscovery):
         self,
         ci_test: str | Callable | None = None,
         significance_level: float = 0.01,
+        max_iter: int | None = None,
     ):
         self.ci_test = ci_test
         self.significance_level = significance_level
+        self.max_iter = max_iter
 
     def _build_dag(self, permutation: tuple[str, ...]) -> DAG:
         """
@@ -141,7 +147,9 @@ class SP(BaseCausalDiscovery):
         best_ordering = None
         optimal_permutations = []
 
-        for permutation in permutations(nodes):
+        for i, permutation in enumerate(permutations(nodes)):
+            if self.max_iter is not None and i >= self.max_iter:
+                break
             dag = self._build_dag(permutation)
             n_edges = dag.number_of_edges()
             if n_edges < min_edges:
