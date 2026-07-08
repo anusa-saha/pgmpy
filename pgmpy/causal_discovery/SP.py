@@ -72,10 +72,7 @@ class SP(BaseCausalDiscovery):
 
     References
     ----------
-    Garvesh Raskutti and Caroline Uhler.
-    "Learning Directed Acyclic Graph Models Based on Sparsest Permutations."
-    Stat, 2018.
-    https://dspace.mit.edu/entities/publication/cda35a77-5918-476f-8e53-41f19f456f22
+    - :cite:p:`raskutti2019learningdirectedacyclicgraphs`
     """
 
     def __init__(
