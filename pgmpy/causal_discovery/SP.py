@@ -83,13 +83,11 @@ class SP(BaseCausalDiscovery):
         ci_test: str | Callable | None = None,
         significance_level: float = 0.01,
         max_iter: int | None = None,
-        seed: int | None = None,
         show_progress: bool = True,
     ):
         self.ci_test = ci_test
         self.significance_level = significance_level
         self.max_iter = max_iter
-        self.seed = seed
         self.show_progress = show_progress
 
     def _build_dag(self, permutation: tuple[str, ...]) -> DAG:
