@@ -32,10 +32,6 @@ class SP(BaseCausalDiscovery):
     max_iter : int or None, default=None
         Maximum number of permutations to evaluate. If None, all possible permutations are considered.
 
-    seed : int, optional
-        Random seed used to shuffle the variable order before generating permutations, ensuring reproducible results
-        across runs. If None, the order is not fixed and results may vary between runs.
-
     show_progress : bool, default=True
         If True, shows a progress bar while learning the causal structure.
 
@@ -147,8 +143,6 @@ class SP(BaseCausalDiscovery):
         """
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
         nodes = list(X.columns)
-        rng = np.random.default_rng(self.seed)
-        nodes = rng.shuffle(nodes)
 
         min_edges = np.inf
         best_ordering = None
