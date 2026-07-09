@@ -23,8 +23,10 @@ class SP(BaseCausalDiscovery):
     Parameters
     ----------
     ci_test : str or callable, default=None
-        Conditional independence test to use for constructing the minimal I-MAP. If ``None``, an appropriate test is
-        automatically selected based on the data type.
+        Conditional independence test to use for constructing the minimal I-MAP. This can be any of the CI test
+        implemented in :mod:`pgmpy.ci_tests` or a custom function that follows the signature of the built-in CI tests.
+
+        If None, the appropriate CI test will be chosen based on the data type.
 
     significance_level : float, default=0.01
         Significance level used by the conditional independence test.
