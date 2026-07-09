@@ -34,8 +34,7 @@ class SP(BaseCausalDiscovery):
 
     seed : int, optional
         Random seed used to shuffle the variable order before generating permutations, ensuring reproducible results
-        across runs. If None, the order is not fixed and results may vary between runs, especially when `max_iter` is
-        set.
+        across runs. If None, the order is not fixed and results may vary between runs.
 
     show_progress : bool, default=True
         If True, shows a progress bar while learning the causal structure.
