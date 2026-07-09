@@ -277,14 +277,25 @@ class PDAG(_CoreGraph):
         """
         from pgmpy.base import DAG
 
-        dag = DAG()
-        dag.add_nodes_from(self.nodes())
-        dag.add_edges_from(self.directed_edges)
-        dag.latents = self.latents
-
         pdag = self.copy()
         required_edges = expert_knowledge.required_edges_ if expert_knowledge is not None else set()
         forbidden_edges = expert_knowledge.forbidden_edges_ if expert_knowledge is not None else set()
+
+        # Enforce expert knowledge up front by orienting required/forbidden edges, then propagate via Meek's rules
+        if required_edges or forbidden_edges:
+            for u, v in required_edges:
+                if pdag.has_edge(u, v, "--"):
+                    pdag.orient_undirected_edge(u, v, inplace=True)
+            for u, v in forbidden_edges:
+                if pdag.has_edge(u, v, "--"):
+                    pdag.orient_undirected_edge(v, u, inplace=True)
+            pdag = pdag.apply_meeks_rules(apply_r4=True, inplace=False)
+
+        dag = DAG()
+        dag.add_nodes_from(pdag.nodes())
+        dag.add_edges_from(pdag.directed_edges)
+        dag.latents = self.latents
+
         while pdag.number_of_nodes() > 0:
             # Find a node with no directed outgoing edge whose undirected neighbours are either empty
             # or whose undirected neighbours + neighbours are mutually adjacent.
@@ -296,11 +307,6 @@ class PDAG(_CoreGraph):
                 )
 
                 if not pdag.get_children(x) and (not undirected_neighbors or neighbors_are_adjacent):
-                    violates_constraints = any(
-                        (x, y) in required_edges or (y, x) in forbidden_edges for y in undirected_neighbors
-                    )
-                    if violates_constraints:
-                        continue
                     found = True
                     for y in pdag.get_neighbors(x, "--"):
                         dag.add_edge(y, x)
