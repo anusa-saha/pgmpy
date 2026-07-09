@@ -238,18 +238,15 @@ class PDAG(_CoreGraph):
         """
         Returns one possible DAG represented by this PDAG.
 
-        If ``expert_knowledge`` is provided, the algorithm respects the fitted
-        required and forbidden edge constraints while constructing the DAG
-        extension whenever possible. Candidate removable nodes whose forced
-        orientations would violate these constraints are skipped.
+        If ``expert_knowledge`` is provided, the algorithm respects the fitted required and forbidden edge constraints
+        while constructing the DAG extension whenever possible. Candidate removable nodes whose forced orientations
+        would violate these constraints are skipped.
 
         Parameters
         ----------
         expert_knowledge : ExpertKnowledge, optional (default=None)
-            A fitted ``ExpertKnowledge`` instance containing the resolved
-            ``required_edges_`` and ``forbidden_edges_`` constraints. If
-            ``None``, the method behaves identically to the standard
-            Dor-Tarsi algorithm.
+            A fitted ``ExpertKnowledge`` instance containing the resolved ``required_edges_`` and ``forbidden_edges_``
+            constraints. If ``None``, the method behaves identically to the standard Dor-Tarsi algorithm.
 
         Returns
         -------
