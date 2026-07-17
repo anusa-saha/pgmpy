@@ -142,7 +142,7 @@ class SP(BaseCausalDiscovery):
             Returns the instance with the fitted attributes.
         """
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
-        nodes = list(X.columns)
+        nodes = list(self.feature_names_in_)
 
         min_edges = np.inf
         best_ordering = None
@@ -152,27 +152,28 @@ class SP(BaseCausalDiscovery):
             if self.max_iter is not None:
                 total = self.max_iter
             else:
-                total = 1
-                for i in range(2, len(nodes) + 1):
-                    total *= i
+                total = np.prod(range(1, len(nodes) + 1))
             pbar = tqdm(total=total)
-            pbar.set_description("Searching over permutations: 0")
 
         for i, permutation in enumerate(permutations(nodes)):
             if self.max_iter is not None and i >= self.max_iter:
                 break
+
+            if self.show_progress and config.SHOW_PROGRESS:
+                pbar.set_description(f"Searching over permutations: {i}")
+                pbar.update(1)
+
             dag = self._build_dag(permutation)
-            n_edges = dag.number_of_edges()
+            n_edges = len(dag.edges())
+
+            # If new graph with minimum edges is found, it restarts the list of optimal permutations
             if n_edges < min_edges:
                 min_edges = n_edges
                 best_ordering = permutation
                 optimal_permutations = [permutation]
+            # If the graph is tied with current minimum, it adds it to the list
             elif n_edges == min_edges:
                 optimal_permutations.append(permutation)
-
-            if self.show_progress and config.SHOW_PROGRESS:
-                pbar.update(1)
-                pbar.set_description(f"Searching over permutations: {i + 1}")
 
         if self.show_progress and config.SHOW_PROGRESS:
             pbar.close()
