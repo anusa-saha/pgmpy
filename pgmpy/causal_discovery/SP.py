@@ -15,7 +15,7 @@ class SP(BaseCausalDiscovery):
     """
     The Sparsest Permutation (SP) algorithm exhaustively searches over all permutations of the variables. For each
     permutation, it constructs the corresponding minimal independence map (I-MAP) using conditional independence tests
-    and returns the DAG with the fewest edges.
+    and returns either that DAG or its PDAG representation, depending on `return_type`.
 
     The algorithm is statistically consistent under the Sparsest Markov Representation (SMR) assumption, which is weaker
     than the restricted faithfulness assumption required by many constraint-based methods.
@@ -34,7 +34,7 @@ class SP(BaseCausalDiscovery):
     max_iter : int or None, default=None
         Maximum number of permutations to evaluate. If None, all possible permutations are considered.
 
-    return_type : str, default='pdag'
+    return_type : str, default='dag'
         The type of graph to return. Options are:
 
         - 'dag': Returns a directed acyclic graph (DAG).
@@ -49,8 +49,8 @@ class SP(BaseCausalDiscovery):
 
     Attributes
     ----------
-    causal_graph_ : pgmpy.base.DAG
-        The learned causal graph as a directed acyclic graph.
+    causal_graph_ : DAG or PDAG
+        The learned causal graph as a directed acyclic graph (DAG) or partially directed acyclic graph (PDAG).
 
     adjacency_matrix_ : pd.DataFrame
         Adjacency matrix representation of the learned causal graph.
@@ -103,9 +103,6 @@ class SP(BaseCausalDiscovery):
         self.return_type = return_type
         self.show_progress = show_progress
         self.random_state = random_state
-
-        if self.max_iter is not None and self.max_iter < 1:
-            raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
 
     def _build_imap_edges(
         self,
@@ -169,6 +166,9 @@ class SP(BaseCausalDiscovery):
         """
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
         nodes = list(self.feature_names_in_)
+
+        if self.max_iter is not None and self.max_iter < 1:
+            raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
 
         if self.max_iter is not None:
             rng = np.random.default_rng(self.random_state)
