@@ -84,11 +84,16 @@ class SP(BaseCausalDiscovery):
         significance_level: float = 0.01,
         max_iter: int | None = None,
         show_progress: bool = True,
+        random_state: int | None = None,
     ):
         self.ci_test = ci_test
         self.significance_level = significance_level
         self.max_iter = max_iter
         self.show_progress = show_progress
+        self.random_state = random_state
+
+        if self.max_iter is not None and self.max_iter < 1:
+            raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
 
     def _build_dag(self, permutation: tuple[str, ...]) -> DAG:
         """
@@ -143,6 +148,10 @@ class SP(BaseCausalDiscovery):
         """
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
         nodes = list(self.feature_names_in_)
+
+        if self.max_iter is not None:
+            rng = np.random.default_rng(self.random_state)
+            rng.shuffle(nodes)
 
         min_edges = np.inf
         best_ordering = None
