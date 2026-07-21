@@ -34,8 +34,18 @@ class SP(BaseCausalDiscovery):
     max_iter : int or None, default=None
         Maximum number of permutations to evaluate. If None, all possible permutations are considered.
 
+    return_type : str, default='pdag'
+        The type of graph to return. Options are:
+
+        - 'dag': Returns a directed acyclic graph (DAG).
+        - 'pdag': Returns a partially directed acyclic graph (PDAG).
+
     show_progress : bool, default=True
         If True, shows a progress bar while learning the causal structure.
+
+    random_state : int or None, default=None
+        Seed for shuffling the variables when `max_iter` is specified. Ignored when `max_iter=None`, since all
+        permutations are evaluated.
 
     Attributes
     ----------
@@ -83,43 +93,51 @@ class SP(BaseCausalDiscovery):
         ci_test: str | Callable | None = None,
         significance_level: float = 0.01,
         max_iter: int | None = None,
+        return_type: str = "dag",
         show_progress: bool = True,
         random_state: int | None = None,
     ):
         self.ci_test = ci_test
         self.significance_level = significance_level
         self.max_iter = max_iter
+        self.return_type = return_type
         self.show_progress = show_progress
         self.random_state = random_state
 
         if self.max_iter is not None and self.max_iter < 1:
             raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
 
-    def _build_dag(self, permutation: tuple[str, ...]) -> DAG:
+    def _build_imap_edges(
+        self,
+        permutation: tuple[str, ...],
+        max_edges: int | None = None,
+    ) -> list[tuple[str, str]] | None:
         """
-        Construct the minimal I-MAP for a given variable ordering.
+        Construct the edges of the minimal I-MAP for a given variable ordering.
 
-        For each variable in the permutation, every preceding variable is considered as a candidate parent. An edge is
-        added from a predecessor to the current variable if they are conditionally dependent given all other
-        predecessors of the current variable.
+        For each variable in the permutation (skipping the first, which has no predecessors and therefore contributes no
+        edges), every preceding variable is considered as a candidate parent. An edge is added from a predecessor to the
+        current variable if they are conditionally dependent given all other predecessors of the current variable.
 
         Parameters
         ----------
         permutation : tuple of str
             A permutation of the variable names.
 
+        max_edges : int or None, default=None
+            Maximum allowed edges during construction. Returns None if the edge count exceeds this value, enabling early
+            pruning of unpromising permutations.
+
         Returns
         -------
-        pgmpy.base.DAG
-            The minimal I-MAP consistent with the given permutation.
+        list of (str, str) tuples, or None
+            The edges of the minimal I-MAP, or None if the search was aborted early because `max_edges` was exceeded.
         """
-        dag = DAG()
-        dag.add_nodes_from(permutation)
+        edges = []
 
-        for node_idx, node in enumerate(permutation):
+        for node_idx in range(1, len(permutation)):
+            node = permutation[node_idx]
             predecessors = permutation[:node_idx]
-            if not predecessors:
-                continue
             for predecessor in predecessors:
                 conditioning_nodes = [pred for pred in predecessors if pred != predecessor]
                 independent = self.ci_test_(
@@ -129,8 +147,11 @@ class SP(BaseCausalDiscovery):
                     significance_level=self.significance_level,
                 )
                 if not independent:
-                    dag.add_edge(predecessor, node)
-        return dag
+                    edges.append((predecessor, node))
+                    if max_edges is not None and len(edges) > max_edges:
+                        return None
+
+        return edges
 
     def _fit(self, X: pd.DataFrame):
         """
@@ -155,6 +176,7 @@ class SP(BaseCausalDiscovery):
 
         min_edges = np.inf
         best_ordering = None
+        best_edges = None
         optimal_permutations = []
 
         if self.show_progress and config.SHOW_PROGRESS:
@@ -172,13 +194,20 @@ class SP(BaseCausalDiscovery):
                 pbar.set_description(f"Searching over permutations: {i}")
                 pbar.update(1)
 
-            dag = self._build_dag(permutation)
-            n_edges = len(dag.edges())
+            edges = self._build_imap_edges(
+                permutation,
+                max_edges=None if min_edges == np.inf else min_edges,
+            )
+            if edges is None:
+                continue
+
+            n_edges = len(edges)
 
             # If new graph with minimum edges is found, it restarts the list of optimal permutations
             if n_edges < min_edges:
                 min_edges = n_edges
                 best_ordering = permutation
+                best_edges = edges
                 optimal_permutations = [permutation]
             # If the graph is tied with current minimum, it adds it to the list
             elif n_edges == min_edges:
@@ -186,8 +215,20 @@ class SP(BaseCausalDiscovery):
 
         if self.show_progress and config.SHOW_PROGRESS:
             pbar.close()
+
         self.optimal_permutations_ = optimal_permutations
-        self.causal_graph_ = self._build_dag(best_ordering)
+
+        current_model = DAG()
+        current_model.add_nodes_from(best_ordering)
+        current_model.add_edges_from(best_edges)
+
+        if self.return_type.lower() == "dag":
+            self.causal_graph_ = current_model
+        elif self.return_type.lower() == "pdag":
+            self.causal_graph_ = current_model.to_pdag()
+        else:
+            raise ValueError(f"return_type must be one of: dag, pdag. Got: {self.return_type}")
+
         self.adjacency_matrix_ = self.causal_graph_.to_adjacency(
             encoding="binary", nodelist=list(self.causal_graph_.nodes())
         )
