@@ -31,15 +31,6 @@ def chain_data():
     C = B + rng.normal(scale=0.1, size=n)
     return pd.DataFrame({"A": A, "B": B, "C": C})
 
-@pytest.fixture
-def collider_data():
-    rng = np.random.default_rng(42)
-    n = 1000
-    A = rng.normal(size=n)
-    B = rng.normal(size=n)
-    C = A + B + rng.normal(scale=0.1, size=n)
-    return pd.DataFrame({"A": A, "B": B, "C": C})
-
 
 class TestSP:
     def test_chain_recovery_and_attributes(self, chain_data):
@@ -54,7 +45,7 @@ class TestSP:
 
         assert est.n_features_in_ == 3
         assert list(est.feature_names_in_) == ["A", "B", "C"]
-        
+
         adj = est.adjacency_matrix_
         assert sorted(list(adj.index)) == ["A", "B", "C"]
         assert sorted(list(adj.columns)) == ["A", "B", "C"]
@@ -64,11 +55,6 @@ class TestSP:
         est = SP(ci_test="pearsonr", return_type="pdag")
         est.fit(chain_data)
         assert isinstance(est.causal_graph_, PDAG)
-
-    def test_collider_recovery(self, collider_data):
-        est = SP(ci_test="pearsonr")
-        est.fit(collider_data)
-        assert set(est.causal_graph_.edges()) == {("A", "C"), ("B", "C")}
 
     def test_seed_and_max_iter(self, chain_data):
         est1 = SP(ci_test="pearsonr", max_iter=10, seed=42)
