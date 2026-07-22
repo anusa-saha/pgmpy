@@ -43,9 +43,8 @@ class SP(BaseCausalDiscovery):
     show_progress : bool, default=True
         If True, shows a progress bar while learning the causal structure.
 
-    random_state : int or None, default=None
-        Seed for shuffling the variables when `max_iter` is specified. Ignored when `max_iter=None`, since all
-        permutations are evaluated.
+    seed : int or None, default=None
+        Seed for the random number generator used to shuffle the variables before searching over permutations.
 
     Attributes
     ----------
@@ -95,39 +94,40 @@ class SP(BaseCausalDiscovery):
         max_iter: int | None = None,
         return_type: str = "dag",
         show_progress: bool = True,
-        random_state: int | None = None,
+        seed: int | None = None,
     ):
         self.ci_test = ci_test
         self.significance_level = significance_level
         self.max_iter = max_iter
         self.return_type = return_type
         self.show_progress = show_progress
-        self.random_state = random_state
+        self.seed = seed
 
     def _build_imap_edges(
         self,
         permutation: tuple[str, ...],
-        max_edges: int | None = None,
+        max_edges: int | float = np.inf,
     ) -> list[tuple[str, str]] | None:
         """
         Construct the edges of the minimal I-MAP for a given variable ordering.
 
         For each variable in the permutation (skipping the first, which has no predecessors and therefore contributes no
         edges), every preceding variable is considered as a candidate parent. An edge is added from a predecessor to the
-        current variable if they are conditionally dependent given all other predecessors of the current variable.
+        current variable if the two variables are conditionally dependent given all other predecessors of the current
+        variable.
 
         Parameters
         ----------
         permutation : tuple of str
             A permutation of the variable names.
 
-        max_edges : int or None, default=None
-            Maximum allowed edges during construction. Returns None if the edge count exceeds this value, enabling early
-            pruning of unpromising permutations.
+        max_edges : int, default=np.inf
+            Maximum number of edges allowed during construction. Returns None if the edge count exceeds this value,
+            enabling early pruning of unpromising permutations.
 
         Returns
         -------
-        list of (str, str) tuples, or None
+        list[tuple[str, str]] or None
             The edges of the minimal I-MAP, or None if the search was aborted early because `max_edges` was exceeded.
         """
         edges = []
@@ -136,7 +136,8 @@ class SP(BaseCausalDiscovery):
             node = permutation[node_idx]
             predecessors = permutation[:node_idx]
             for predecessor in predecessors:
-                conditioning_nodes = [pred for pred in predecessors if pred != predecessor]
+                conditioning_nodes = set(predecessors)
+                conditioning_nodes.remove(predecessor)
                 independent = self.ci_test_(
                     X=predecessor,
                     Y=node,
@@ -145,7 +146,7 @@ class SP(BaseCausalDiscovery):
                 )
                 if not independent:
                     edges.append((predecessor, node))
-                    if max_edges is not None and len(edges) > max_edges:
+                    if len(edges) > max_edges:
                         return None
 
         return edges
@@ -166,13 +167,11 @@ class SP(BaseCausalDiscovery):
         """
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
         nodes = list(self.feature_names_in_)
+        rng = np.random.default_rng(self.seed)
+        rng.shuffle(nodes)
 
         if self.max_iter is not None and self.max_iter < 1:
             raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
-
-        if self.max_iter is not None:
-            rng = np.random.default_rng(self.random_state)
-            rng.shuffle(nodes)
 
         min_edges = np.inf
         best_ordering = None
@@ -184,19 +183,18 @@ class SP(BaseCausalDiscovery):
                 total = self.max_iter
             else:
                 total = np.prod(range(1, len(nodes) + 1))
-            pbar = tqdm(total=total)
+            pbar = tqdm(total=total, desc="Searching over permutations")
 
         for i, permutation in enumerate(permutations(nodes)):
             if self.max_iter is not None and i >= self.max_iter:
                 break
 
             if self.show_progress and config.SHOW_PROGRESS:
-                pbar.set_description(f"Searching over permutations: {i}")
                 pbar.update(1)
 
             edges = self._build_imap_edges(
                 permutation,
-                max_edges=None if min_edges == np.inf else min_edges,
+                max_edges=np.inf if min_edges == np.inf else min_edges,
             )
             if edges is None:
                 continue
