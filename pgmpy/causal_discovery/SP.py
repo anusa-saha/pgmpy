@@ -136,8 +136,7 @@ class SP(BaseCausalDiscovery):
             node = permutation[node_idx]
             predecessors = permutation[:node_idx]
             for predecessor in predecessors:
-                conditioning_nodes = set(predecessors)
-                conditioning_nodes.remove(predecessor)
+                conditioning_nodes = {p for p in predecessors if p != predecessor}
                 independent = self.ci_test_(
                     X=predecessor,
                     Y=node,

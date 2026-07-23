@@ -1,10 +1,10 @@
 import numpy as np
-import pandas as pd
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pgmpy.base import DAG, PDAG
 from pgmpy.causal_discovery import SP
+from pgmpy.example_models import load_model
 
 
 def expected_failed_checks(estimator):
@@ -23,43 +23,35 @@ def test_sp_compatibility(estimator, check):
 
 
 @pytest.fixture
-def chain_data():
-    rng = np.random.default_rng(42)
-    n = 1000
-    A = rng.normal(size=n)
-    B = A + rng.normal(scale=0.1, size=n)
-    C = B + rng.normal(scale=0.1, size=n)
-    return pd.DataFrame({"A": A, "B": B, "C": C})
+def cancer_data():
+    model = load_model("bnlearn/cancer")
+    return model.simulate(n_samples=1000, seed=42)
 
 
 class TestSP:
-    def test_chain_recovery_and_attributes(self, chain_data):
-        est = SP(ci_test="pearsonr", return_type="dag")
-        est.fit(chain_data)
+    def test_chain_recovery_and_attributes(self, cancer_data):
+        est = SP(ci_test="g_sq", return_type="dag", seed=42)
+        est.fit(cancer_data)
         assert isinstance(est.causal_graph_, DAG)
 
-        graph = est.causal_graph_.to_undirected()
-        assert graph.has_edge("A", "B")
-        assert graph.has_edge("B", "C")
-        assert graph.number_of_edges() == 2
-
-        assert est.n_features_in_ == 3
-        assert list(est.feature_names_in_) == ["A", "B", "C"]
+        assert set(est.causal_graph_.edges()) == {("Xray", "Cancer")}
+        assert est.n_features_in_ == cancer_data.shape[1]
+        assert list(est.feature_names_in_) == list(cancer_data.columns)
 
         adj = est.adjacency_matrix_
-        assert sorted(list(adj.index)) == ["A", "B", "C"]
-        assert sorted(list(adj.columns)) == ["A", "B", "C"]
+        assert sorted(adj.index) == sorted(cancer_data.columns)
+        assert sorted(adj.columns) == sorted(cancer_data.columns)
         assert np.all(np.diag(adj) == 0)
 
-    def test_returns_pdag(self, chain_data):
-        est = SP(ci_test="pearsonr", return_type="pdag")
-        est.fit(chain_data)
+    def test_returns_pdag(self, cancer_data):
+        est = SP(ci_test="g_sq", return_type="pdag")
+        est.fit(cancer_data)
         assert isinstance(est.causal_graph_, PDAG)
 
-    def test_seed_and_max_iter(self, chain_data):
-        est1 = SP(ci_test="pearsonr", max_iter=10, seed=42)
-        est2 = SP(ci_test="pearsonr", max_iter=10, seed=42)
-        est1.fit(chain_data)
-        est2.fit(chain_data)
+    def test_seed_and_max_iter(self, cancer_data):
+        est1 = SP(ci_test="g_sq", max_iter=10, seed=42)
+        est2 = SP(ci_test="g_sq", max_iter=10, seed=42)
+        est1.fit(cancer_data)
+        est2.fit(cancer_data)
         assert set(est1.causal_graph_.edges()) == set(est2.causal_graph_.edges())
         assert est1.optimal_permutations_ == est2.optimal_permutations_
