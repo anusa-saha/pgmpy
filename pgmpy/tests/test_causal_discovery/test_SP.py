@@ -1,12 +1,10 @@
-import gzip
-
 import numpy as np
 import pytest
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from pgmpy.base import DAG, PDAG
 from pgmpy.causal_discovery import SP
-from pgmpy.readwrite import BIFReader
+from pgmpy.example_models import load_model
 
 
 def expected_failed_checks(estimator):
@@ -26,10 +24,7 @@ def test_sp_compatibility(estimator, check):
 
 @pytest.fixture
 def cancer_data():
-    with gzip.open("pgmpy/tests/test_data/example_models/discrete/cancer.bif.gz", "rt", encoding="utf-8") as f:
-        bif_str = f.read()
-
-    model = BIFReader(string=bif_str).get_model()
+    model = load_model("bnlearn/cancer")
     return model.simulate(n_samples=1000, seed=42)
 
 
