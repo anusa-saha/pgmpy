@@ -275,17 +275,10 @@ class PDAG(_CoreGraph):
         from pgmpy.base import DAG
 
         pdag = self.copy()
-        required_edges = expert_knowledge.required_edges_ if expert_knowledge is not None else set()
-        forbidden_edges = expert_knowledge.forbidden_edges_ if expert_knowledge is not None else set()
 
         # Enforce expert knowledge up front by orienting required/forbidden edges, then propagate via Meek's rules
-        if required_edges or forbidden_edges:
-            for u, v in required_edges:
-                if pdag.has_edge(u, v, "--"):
-                    pdag.orient_undirected_edge(u, v, inplace=True)
-            for u, v in forbidden_edges:
-                if pdag.has_edge(u, v, "--"):
-                    pdag.orient_undirected_edge(v, u, inplace=True)
+        if expert_knowledge is not None:
+            expert_knowledge.apply_to(pdag)
             pdag = pdag.apply_meeks_rules(apply_r4=True, inplace=False)
 
         dag = DAG()
