@@ -238,18 +238,15 @@ class PDAG(_CoreGraph):
         """
         Returns one possible DAG represented by this PDAG.
 
-        If ``expert_knowledge`` is provided, the algorithm respects the fitted
-        required and forbidden edge constraints while constructing the DAG
-        extension whenever possible. Candidate removable nodes whose forced
-        orientations would violate these constraints are skipped.
+        If ``expert_knowledge`` is provided, the algorithm respects the fitted required and forbidden edge constraints
+        while constructing the DAG extension whenever possible. Candidate removable nodes whose forced orientations
+        would violate these constraints are skipped.
 
         Parameters
         ----------
         expert_knowledge : ExpertKnowledge, optional (default=None)
-            A fitted ``ExpertKnowledge`` instance containing the resolved
-            ``required_edges_`` and ``forbidden_edges_`` constraints. If
-            ``None``, the method behaves identically to the standard
-            Dor-Tarsi algorithm.
+            A fitted ``ExpertKnowledge`` instance containing the resolved ``required_edges_`` and ``forbidden_edges_``
+            constraints. If ``None``, the method behaves identically to the standard Dor-Tarsi algorithm.
 
         Returns
         -------
@@ -273,22 +270,15 @@ class PDAG(_CoreGraph):
 
         References
         ----------
-        - :cite:p:`dor_tarsi_1992`
+        - :footcite:t:`dor_tarsi_1992`
         """
         from pgmpy.base import DAG
 
         pdag = self.copy()
-        required_edges = expert_knowledge.required_edges_ if expert_knowledge is not None else set()
-        forbidden_edges = expert_knowledge.forbidden_edges_ if expert_knowledge is not None else set()
 
         # Enforce expert knowledge up front by orienting required/forbidden edges, then propagate via Meek's rules
-        if required_edges or forbidden_edges:
-            for u, v in required_edges:
-                if pdag.has_edge(u, v, "--"):
-                    pdag.orient_undirected_edge(u, v, inplace=True)
-            for u, v in forbidden_edges:
-                if pdag.has_edge(u, v, "--"):
-                    pdag.orient_undirected_edge(v, u, inplace=True)
+        if expert_knowledge is not None:
+            expert_knowledge.apply_to(pdag)
             pdag = pdag.apply_meeks_rules(apply_r4=True, inplace=False)
 
         dag = DAG()
