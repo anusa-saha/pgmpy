@@ -45,22 +45,17 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         - 'pdag': Returns a partially directed acyclic graph (PDAG).
 
     min_improvement : float, default=1e-6
-        The minimum score improvement required to perform an operation
-        (edge addition, removal, or flipping). Operations with smaller
-        improvements are not performed.
+        The minimum score improvement required to perform an operation (edge addition, removal, or flipping). Operations
+        with smaller improvements are not performed.
 
     expert_knowledge : ExpertKnowledge instance, default=None
-        Expert knowledge used to constrain the search space during
-        structure learning. Supports user-specified forbidden edges
-        and search-space restrictions defined through
-        ``ExpertKnowledge``. Edges excluded by these constraints
-        are not considered as candidate edge additions or
-        orientations, reducing the search space explored by GES.
+        Expert knowledge used to constrain the search space during structure learning. Supports user-specified forbidden
+        edges and search-space restrictions defined through ``ExpertKnowledge``. Edges excluded by these constraints are
+        not considered as candidate edge additions or orientations, reducing the search space explored by GES.
 
     max_indegree : int or None, default=None
-        If provided, the procedure only searches among models where all nodes
-        have at most `max_indegree` parents. This can significantly reduce
-        the search space and computation time for large graphs.
+        If provided, the procedure only searches among models where all nodes have at most `max_indegree` parents. This
+        can significantly reduce the search space and computation time for large graphs.
 
     Attributes
     ----------
