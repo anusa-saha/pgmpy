@@ -234,39 +234,13 @@ class PDAG(_CoreGraph):
             cpdag.with_role(role=role, variables=variables, inplace=True)
         return cpdag
 
-    def to_dag(self, expert_knowledge=None):
+    def to_dag(self):
         """
         Returns one possible DAG represented by this PDAG.
-
-        If ``expert_knowledge`` is provided, the algorithm respects the fitted required and forbidden edge constraints
-        while constructing the DAG extension whenever possible. Candidate removable nodes whose forced orientations
-        would violate these constraints are skipped.
-
-        Parameters
-        ----------
-        expert_knowledge : ExpertKnowledge, optional (default=None)
-            A fitted ``ExpertKnowledge`` instance containing the resolved ``required_edges_`` and ``forbidden_edges_``
-            constraints. If ``None``, the method behaves identically to the standard Dor-Tarsi algorithm.
 
         Returns
         -------
         pgmpy.base.DAG
-            A DAG extension of the PDAG.
-
-        Examples
-        --------
-        >>> import pandas as pd
-        >>> from pgmpy.base import PDAG
-        >>> from pgmpy.causal_discovery import ExpertKnowledge
-
-        >>> pdag = PDAG(edge_list=[("A", "B", "->"), ("C", "B", "->"), ("C", "D", "--"), ("D", "A", "--")])
-        >>> expert = ExpertKnowledge( required_edges=[("D", "C")], forbidden_edges=[("D", "A")])
-        >>> _ = expert.fit(pd.DataFrame(columns=["A", "B", "C", "D"]))
-        >>> dag = pdag.to_dag(expert_knowledge=expert)
-        >>> ("D", "C") in dag.edges()
-        True
-        >>> ("D", "A") in dag.edges()
-        False
 
         References
         ----------
@@ -274,18 +248,12 @@ class PDAG(_CoreGraph):
         """
         from pgmpy.base import DAG
 
-        pdag = self.copy()
-
-        # Enforce expert knowledge up front by orienting required/forbidden edges, then propagate via Meek's rules
-        if expert_knowledge is not None:
-            expert_knowledge.apply_to(pdag)
-            pdag = pdag.apply_meeks_rules(apply_r4=True, inplace=False)
-
         dag = DAG()
-        dag.add_nodes_from(pdag.nodes())
-        dag.add_edges_from(pdag.directed_edges)
+        dag.add_nodes_from(self.nodes())
+        dag.add_edges_from(self.directed_edges)
         dag.latents = self.latents
 
+        pdag = self.copy()
         while pdag.number_of_nodes() > 0:
             # Find a node with no directed outgoing edge whose undirected neighbours are either empty
             # or whose undirected neighbours + neighbours are mutually adjacent.

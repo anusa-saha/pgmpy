@@ -549,8 +549,12 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
         # Step 5: Store results
         current_model = current_model.to_cpdag()
 
+        # Enforce ExpertKnowledge on the learned graph
+        expert_knowledge.apply_to(current_model)
+        current_model = current_model.apply_meeks_rules(apply_r4=True, inplace=False)
+
         if self.return_type.lower() == "dag":
-            self.causal_graph_ = current_model.to_dag(expert_knowledge=expert_knowledge)
+            self.causal_graph_ = current_model.to_dag()
         elif self.return_type.lower() == "pdag":
             self.causal_graph_ = current_model
         else:

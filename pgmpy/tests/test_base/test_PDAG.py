@@ -1,8 +1,6 @@
-import pandas as pd
 import pytest
 
 from pgmpy.base import DAG, PDAG
-from pgmpy.causal_discovery import ExpertKnowledge
 
 
 class TestPDAG:
@@ -324,31 +322,6 @@ class TestPDAG:
             (5, 4),
         }
         assert set(dag.edges()) == dag_actual
-
-    def test_expert_knowledge_to_dag(self):
-        pdag = PDAG(edge_list=[("A", "B", "->"), ("C", "B", "->"), ("C", "D", "--"), ("D", "A", "--")])
-        expertknowledge = ExpertKnowledge(
-            search_space=[("A", "B"), ("C", "B"), ("D", "C"), ("A", "D")],
-            required_edges=[("D", "C")],
-            forbidden_edges=[("D", "A")],
-        )
-        expertknowledge.fit(pd.DataFrame(columns=["A", "B", "C", "D"]))
-
-        dag = pdag.to_dag(expert_knowledge=expertknowledge)
-
-        # Required edge
-        assert ("D", "C") in dag.edges()
-        assert ("C", "D") not in dag.edges()
-
-        # Forbidden edge
-        assert ("A", "D") in dag.edges()
-        assert ("D", "A") not in dag.edges()
-
-        # Search space
-        assert ("D", "C") in dag.edges()
-        assert ("A", "D") in dag.edges()
-        assert ("C", "D") not in dag.edges()
-        assert ("D", "A") not in dag.edges()
 
     def test_pdag_to_cpdag(self):
         pdag = PDAG(edge_list=[("A", "B", "->"), ("B", "C", "--")])
