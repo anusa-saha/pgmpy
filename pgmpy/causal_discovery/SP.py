@@ -107,7 +107,7 @@ class SP(BaseCausalDiscovery):
     def _build_imap_edges(
         self,
         permutation: tuple[str, ...],
-        max_edges: int | float = np.inf,
+        n_edge_limit: int | float = np.inf,
     ) -> list[tuple[str, str]] | None:
         """
         Construct the edges of the minimal I-MAP for a given variable ordering.
@@ -122,14 +122,14 @@ class SP(BaseCausalDiscovery):
         permutation : tuple of str
             A permutation of the variable names.
 
-        max_edges : int, default=np.inf
+        n_edge_limit : int, default=np.inf
             Maximum number of edges allowed during construction. Returns None if the edge count exceeds this value,
             enabling early pruning of unpromising permutations.
 
         Returns
         -------
         list[tuple[str, str]] or None
-            The edges of the minimal I-MAP, or None if the search was aborted early because `max_edges` was exceeded.
+            The edges of the minimal I-MAP, or None if the search was aborted early because `n_edge_limit` was exceeded.
         """
         edges = []
 
@@ -146,7 +146,7 @@ class SP(BaseCausalDiscovery):
                 )
                 if not independent:
                     edges.append((predecessor, node))
-                    if len(edges) > max_edges:
+                    if len(edges) > n_edge_limit:
                         return None
 
         return edges
@@ -184,8 +184,8 @@ class SP(BaseCausalDiscovery):
         best_edges = None
         optimal_permutations = []
 
-        n_permutations = factorial(len(nodes))
-        n_iterations = min(self.max_iter, n_permutations) if self.max_iter is not None else n_permutations
+        max_permutations = factorial(len(nodes))
+        n_iterations = min(self.max_iter, max_permutations) if self.max_iter is not None else max_permutations
         permutation_iter = islice(permutations(nodes), n_iterations)
 
         for permutation in tqdm(
@@ -196,7 +196,7 @@ class SP(BaseCausalDiscovery):
         ):
             edges = self._build_imap_edges(
                 permutation,
-                max_edges=np.inf if min_edges == np.inf else min_edges,
+                n_edge_limit=min_edges,
             )
             if edges is None:
                 continue
