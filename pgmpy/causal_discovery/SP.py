@@ -1,5 +1,6 @@
 from collections.abc import Callable
-from itertools import permutations
+from itertools import islice, permutations
+from math import factorial
 
 import numpy as np
 import pandas as pd
@@ -183,20 +184,16 @@ class SP(BaseCausalDiscovery):
         best_edges = None
         optimal_permutations = []
 
-        if self.show_progress and config.SHOW_PROGRESS:
-            if self.max_iter is not None:
-                total = self.max_iter
-            else:
-                total = np.prod(range(1, len(nodes) + 1))
-            pbar = tqdm(total=total, desc="Searching over permutations")
+        n_permutations = factorial(len(nodes))
+        n_iterations = min(self.max_iter, n_permutations) if self.max_iter is not None else n_permutations
+        permutation_iter = islice(permutations(nodes), n_iterations)
 
-        for i, permutation in enumerate(permutations(nodes)):
-            if self.max_iter is not None and i >= self.max_iter:
-                break
-
-            if self.show_progress and config.SHOW_PROGRESS:
-                pbar.update(1)
-
+        for permutation in tqdm(
+            permutation_iter,
+            total=n_iterations,
+            desc="Searching over permutations",
+            disable=not (self.show_progress and config.SHOW_PROGRESS),
+        ):
             edges = self._build_imap_edges(
                 permutation,
                 max_edges=np.inf if min_edges == np.inf else min_edges,
@@ -215,9 +212,6 @@ class SP(BaseCausalDiscovery):
             # If the graph is tied with current minimum, it adds it to the list
             elif n_edges == min_edges:
                 optimal_permutations.append(permutation)
-
-        if self.show_progress and config.SHOW_PROGRESS:
-            pbar.close()
 
         self.optimal_permutations_ = optimal_permutations
 
