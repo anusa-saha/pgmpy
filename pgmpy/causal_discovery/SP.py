@@ -136,7 +136,7 @@ class SP(BaseCausalDiscovery):
             node = permutation[node_idx]
             predecessors = permutation[:node_idx]
             for predecessor in predecessors:
-                conditioning_nodes = {p for p in predecessors if p != predecessor}
+                conditioning_nodes = (p for p in predecessors if p != predecessor)
                 independent = self.ci_test_(
                     X=predecessor,
                     Y=node,
@@ -164,14 +164,20 @@ class SP(BaseCausalDiscovery):
         self : pgmpy.causal_discovery.SP
             Returns the instance with the fitted attributes.
         """
+        # Step 0: Check inputs
+        if self.max_iter is not None and self.max_iter < 1:
+            raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
+        if self.return_type.lower() not in ("dag", "pdag"):
+            raise ValueError(f"return_type must be one of: dag, pdag. Got: {self.return_type}")
+
+        # Step 1: Initialize variables and data structures.
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
         nodes = list(self.feature_names_in_)
+
         rng = np.random.default_rng(self.seed)
         rng.shuffle(nodes)
 
-        if self.max_iter is not None and self.max_iter < 1:
-            raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
-
+        # Step 2: Run the iterations.
         min_edges = np.inf
         best_ordering = None
         best_edges = None
@@ -215,6 +221,7 @@ class SP(BaseCausalDiscovery):
 
         self.optimal_permutations_ = optimal_permutations
 
+        # Step 3: Construct the DAG using the optimal permutation and assign attributes.
         current_model = DAG()
         current_model.add_nodes_from(best_ordering)
         current_model.add_edges_from(best_edges)
@@ -223,8 +230,6 @@ class SP(BaseCausalDiscovery):
             self.causal_graph_ = current_model
         elif self.return_type.lower() == "pdag":
             self.causal_graph_ = current_model.to_pdag()
-        else:
-            raise ValueError(f"return_type must be one of: dag, pdag. Got: {self.return_type}")
 
         self.adjacency_matrix_ = self.causal_graph_.to_adjacency(
             encoding="binary", nodelist=list(self.causal_graph_.nodes())
