@@ -40,9 +40,10 @@ class SP(BaseCausalDiscovery):
     variant : str, default='exhaustive'
         Which search strategy to use. Options are:
 
-        - 'exhaustive': The original Sparsest Permutation (SP) algorithm, searching over all (or up to `max_iter`) permutations.
-        - 'greedy': The Greedy Sparsest Permutation (GSP) algorithm, searching over covered-arrow reversals
-          from `n_runs` random starting permutations, up to `search_depth` non-improving steps each.
+        - 'exhaustive': The original Sparsest Permutation (SP) algorithm, searching over all (or up to `max_iter`)
+          permutations.
+        - 'greedy': The Greedy Sparsest Permutation (GSP) algorithm, searching over covered-arrow reversals from
+          `n_runs` random starting permutations, up to `search_depth` non-improving steps each.
 
     max_iter : int or None, default=None
         Maximum number of permutations to evaluate. If None, all possible permutations are considered. Only used when
@@ -192,44 +193,38 @@ class SP(BaseCausalDiscovery):
 
         return edges
 
-    def _reverse_if_covered(self, G: DAG, u: str, v: str) -> DAG | None:
+    def _reverse_covered_edges(self, G: DAG) -> list[DAG]:
         """
-        Reverse the arrow u -> v in G if it is a covered arrow.
+        Return every DAG obtainable from G by reversing a single covered arrow.
 
-        An arrow u -> v is covered if Pa(u) = Pa(v) \\ {u}, i.e. u and v have identical parent sets once u is
-        excluded from the parents of v. Reversing a covered arrow produces a DAG that is Markov equivalent to
-        G (same skeleton, same number of edges) -- it does NOT by itself produce a sparser graph. Callers that
-        want a candidate sparser minimal I-MAP must additionally take a linear extension of the returned graph
-        and rebuild the I-MAP from that ordering via `_build_imap_edges`.
+        An arrow u -> v is covered if Pa(u) = Pa(v) \\ {u}. Reversing a covered arrow produces a DAG that is Markov
+        equivalent to G (same skeleton, same number of edges) -- these are exactly the neighbors that the greedy search
+        walks between while looking for a sparser I-MAP. To actually test whether a neighbor leads somewhere sparser,
+        take a linear extension of it and rebuild the I-MAP from that ordering via `_build_imap_edges`.
 
         Parameters
         ----------
         G : DAG
             The current DAG.
 
-        u, v : str
-            The tail and head of the candidate arrow u -> v.
-
         Returns
         -------
-        DAG or None
-            A new DAG with u -> v reversed to v -> u, or None if u -> v is not a covered arrow (or not an
-            arrow of G at all).
+        list[DAG]
+            One DAG per covered arrow in G, each with that arrow reversed.
         """
-        if not G.has_edge(u, v):
-            return None
+        neighbors = []
 
-        parents_u = set(G.predecessors(u))
-        parents_v = set(G.predecessors(v))
+        for u, v in G.edges():
+            parents_u = set(G.predecessors(u))
+            parents_v = set(G.predecessors(v))
 
-        if parents_u != (parents_v - {u}):
-            return None
+            if parents_u == (parents_v - {u}):
+                new_G = G.copy()
+                new_G.remove_edge(u, v)
+                new_G.add_edge(v, u)
+                neighbors.append(new_G)
 
-        new_G = G.copy()
-        new_G.remove_edge(u, v)
-        new_G.add_edge(v, u)
-
-        return new_G
+        return neighbors
 
     def _fit(self, X: pd.DataFrame):
         """
@@ -253,7 +248,9 @@ class SP(BaseCausalDiscovery):
 
         if self.variant == "exhaustive":
             if self.max_iter is not None and self.max_iter < 1:
-                raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
+                raise ValueError(
+                    f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}."
+                )
         elif self.variant == "greedy":
             if self.search_depth < 1:
                 raise ValueError(f"search_depth must be at least 1, got {self.search_depth}.")
@@ -289,7 +286,6 @@ class SP(BaseCausalDiscovery):
                     continue
 
                 n_edges = len(edges)
-
                 # If new graph with minimum edges is found, it restarts the list of optimal permutations
                 if n_edges < min_edges:
                     min_edges = n_edges
@@ -301,80 +297,60 @@ class SP(BaseCausalDiscovery):
                     optimal_permutations.append(permutation)
 
         elif self.variant == "greedy":
-            for _run in tqdm(
-                range(self.n_runs),
-                desc="Running Greedy Sparsest Permutation",
+            with tqdm(
+                total=self.n_runs,
+                desc="Running GSP restarts",
                 disable=not (self.show_progress and config.SHOW_PROGRESS),
-            ):
-                # Choose a random starting permutation for this run.
-                start_permutation = nodes.copy()
-                rng.shuffle(start_permutation)
-                start_permutation = tuple(start_permutation)
+            ) as pbar:
+                for run in range(self.n_runs):
+                    # Choose a random starting permutation for this run.
+                    permutation = nodes.copy()
+                    rng.shuffle(permutation)
+                    permutation = tuple(permutation)
 
-                current_edges = self._build_imap_edges(start_permutation)
-                current_graph = DAG()
-                current_graph.add_nodes_from(start_permutation)
-                current_graph.add_edges_from(current_edges)
+                    edges = self._build_imap_edges(permutation)
+                    model = DAG()
+                    model.add_nodes_from(permutation)
+                    model.add_edges_from(edges)
 
-                # DFS through covered-arrow reversals, bounded by search_depth non-improving steps.
-                depth = 0
-                while depth < self.search_depth:
-                    improved = False
+                    depth = 0
+                    while depth < self.search_depth:
+                        moved = False
 
-                    # Covered arrows: u -> v with Pa(u) = Pa(v) \ {u}.
-                    covered_arrows = [
-                        (u, v)
-                        for u, v in current_graph.edges()
-                        if set(current_graph.predecessors(u)) == (set(current_graph.predecessors(v)) - {u})
-                    ]
+                        for neighbor in self._reverse_covered_edges(model):
+                            candidate_permutation = tuple(nx.topological_sort(neighbor))
+                            candidate_edges = self._build_imap_edges(candidate_permutation, n_edge_limit=len(edges))
+                            if candidate_edges is None:
+                                continue
 
-                    for u, v in covered_arrows:
-                        reversed_graph = self._reverse_if_covered(current_graph, u, v)
-                        if reversed_graph is None:
-                            continue
+                            if len(candidate_edges) <= len(edges):
+                                if len(candidate_edges) < len(edges):
+                                    depth = 0
+                                permutation, edges = candidate_permutation, candidate_edges
+                                model = DAG()
+                                model.add_nodes_from(permutation)
+                                model.add_edges_from(edges)
+                                moved = True
+                                break
 
-                        # A covered-arrow reversal alone only yields a Markov-equivalent graph. To find a candidate
-                        # sparser I-MAP, take a linear extension of the reversed graph and rebuild the I-MAP from that
-                        # ordering using CI tests.
-                        candidate_permutation = tuple(nx.topological_sort(reversed_graph))
-                        candidate_edges = self._build_imap_edges(candidate_permutation, n_edge_limit=len(current_edges))
-                        if candidate_edges is None:
-                            continue
-
-                        if len(candidate_edges) < len(current_edges):
-                            # Strict improvement: move here and reset the non-improving-step counter.
-                            current_edges = candidate_edges
-                            current_graph = DAG()
-                            current_graph.add_nodes_from(candidate_permutation)
-                            current_graph.add_edges_from(current_edges)
-                            depth = 0
-                            improved = True
-                            break
-                        elif len(candidate_edges) == len(current_edges):
-                            # Weakly-decreasing step: descend without resetting the depth counter, in case this leads to
-                            # a strict improvement further along the walk.
-                            current_edges = candidate_edges
-                            current_graph = DAG()
-                            current_graph.add_nodes_from(candidate_permutation)
-                            current_graph.add_edges_from(current_edges)
-                            improved = True
+                        depth += 1
+                        if not moved:
                             break
 
-                    depth += 1
-                    if not improved:
-                        break
+                    n_edges = len(edges)
 
-                n_edges = len(current_edges)
+                    # If new graph with minimum edges is found, it restarts the list of optimal permutations
+                    if n_edges < min_edges:
+                        min_edges = n_edges
+                        best_ordering = permutation
+                        best_edges = edges
+                        optimal_permutations = [permutation]
+                    # If the graph is tied with current minimum, it adds it to the list
+                    elif n_edges == min_edges:
+                        optimal_permutations.append(permutation)
 
-                # If new graph with minimum edges is found, it restarts the list of optimal permutations
-                if n_edges < min_edges:
-                    min_edges = n_edges
-                    best_ordering = start_permutation
-                    best_edges = current_edges
-                    optimal_permutations = [start_permutation]
-                # If the graph is tied with current minimum, it adds it to the list
-                elif n_edges == min_edges:
-                    optimal_permutations.append(start_permutation)
+                    pbar.set_postfix(run=run + 1, best_edges=min_edges, last_run_edges=n_edges)
+                    pbar.update(1)
 
         self.optimal_permutations_ = optimal_permutations
 
