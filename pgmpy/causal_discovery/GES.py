@@ -96,6 +96,7 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
     ----------
     - :footcite:t:`chickering_2002b`
     - https://github.com/juangamella/ges
+    - :footcite:t:`ramsey_2017`
     """
 
     def __init__(
@@ -426,19 +427,16 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
             # sorted() gives a stable, canonical tie-break (matching the deletion phase) so the turn
             # chosen among equally-scored candidates does not depend on internal edge insertion order.
             for u, v, edge_type in sorted(current_model.get_edges(data=True)):
-                if (
-                    (v, u) not in expert_knowledge.forbidden_edges_
-                    and (u, v) not in expert_knowledge.required_edges_
-                ):
+                if (v, u) not in expert_knowledge.forbidden_edges_ and (u, v) not in expert_knowledge.required_edges_:
                     potential_turns.append((v, u))
 
                 if edge_type == "--":
-                    if (
-                        (u, v) not in expert_knowledge.forbidden_edges_
-                        and (v, u) not in expert_knowledge.required_edges_
-                    ):
+                    if (u, v) not in expert_knowledge.forbidden_edges_ and (
+                        v,
+                        u,
+                    ) not in expert_knowledge.required_edges_:
                         potential_turns.append((u, v))
-                        
+
             score_deltas = np.zeros(len(potential_turns))
             turn_ops: list[tuple[float, Any, Any, set[Any]] | None] = []
 
