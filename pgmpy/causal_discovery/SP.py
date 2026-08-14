@@ -197,8 +197,8 @@ class SP(BaseCausalDiscovery):
         """
         Return every DAG obtainable from G by reversing a single covered arrow.
 
-        An arrow u -> v is covered if Pa(u) = Pa(v) \\ {u}. Reversing a covered arrow produces a DAG that is Markov
-        equivalent to G (same skeleton, same number of edges) -- these are exactly the neighbors that the greedy search
+        An arrow u -> v is covered if Pa(u) = Pa(v) - {u}. Reversing a covered arrow produces a DAG that is Markov
+        equivalent to G (same skeleton, same number of edges), these are exactly the neighbors that the greedy search
         walks between while looking for a sparser I-MAP. To actually test whether a neighbor leads somewhere sparser,
         take a linear extension of it and rebuild the I-MAP from that ordering via `_build_imap_edges`.
 
@@ -299,15 +299,16 @@ class SP(BaseCausalDiscovery):
         elif self.variant == "greedy":
             with tqdm(
                 total=self.n_runs,
-                desc="Running GSP restarts",
+                desc="Running Greedy Sparsest Permutation",
                 disable=not (self.show_progress and config.SHOW_PROGRESS),
             ) as pbar:
                 for run in range(self.n_runs):
                     # Choose a random starting permutation for this run.
-                    permutation = nodes.copy()
-                    rng.shuffle(permutation)
-                    permutation = tuple(permutation)
+                    starting_permutation = nodes.copy()
+                    rng.shuffle(starting_permutation)
+                    starting_permutation = tuple(starting_permutation)
 
+                    permutation = starting_permutation
                     edges = self._build_imap_edges(permutation)
                     model = DAG()
                     model.add_nodes_from(permutation)
@@ -344,10 +345,10 @@ class SP(BaseCausalDiscovery):
                         min_edges = n_edges
                         best_ordering = permutation
                         best_edges = edges
-                        optimal_permutations = [permutation]
+                        optimal_permutations = [starting_permutation]
                     # If the graph is tied with current minimum, it adds it to the list
                     elif n_edges == min_edges:
-                        optimal_permutations.append(permutation)
+                        optimal_permutations.append(starting_permutation)
 
                     pbar.set_postfix(run=run + 1, best_edges=min_edges, last_run_edges=n_edges)
                     pbar.update(1)
