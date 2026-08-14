@@ -219,10 +219,10 @@ class SP(BaseCausalDiscovery):
             parents_v = set(G.predecessors(v))
 
             if parents_u == (parents_v - {u}):
-                new_G = G.copy()
-                new_G.remove_edge(u, v)
-                new_G.add_edge(v, u)
-                neighbors.append(new_G)
+                new_graph = G.copy()
+                new_graph.remove_edge(u, v)
+                new_graph.add_edge(v, u)
+                neighbors.append(new_graph)
 
         return neighbors
 
