@@ -95,8 +95,8 @@ class GES(_ScoreMixin, BaseCausalDiscovery):
     References
     ----------
     - :footcite:t:`chickering_2002b`
-    - https://github.com/juangamella/ges
     - :footcite:t:`ramsey_2017`
+    - https://github.com/juangamella/ges
     """
 
     def __init__(
