@@ -23,8 +23,11 @@ class SP(BaseCausalDiscovery):
     than the restricted faithfulness assumption required by many constraint-based methods.
 
     Setting ``variant="greedy"`` instead runs the Greedy Sparsest Permutation (GSP) algorithm, a bounded approximation
-    of SP that scales to much larger variable sets by searching over covered-arrow reversals from a small number of
-    random starting permutations instead of exhaustively enumerating all permutations.
+    of SP that scales to much larger variable sets by performing a depth-first search over covered-arrow reversals from
+    a small number of random starting permutations instead of exhaustively enumerating all permutations. At each step,
+    the search greedily reverses the covered arrow that removes the most redundant edges; if no reversal removes any
+    edges, it takes a non-improving step (up to `search_depth` of them, with backtracking) to escape the current Markov
+    equivalence class in search of a sparser one.
 
     Parameters
     ----------
@@ -57,9 +60,9 @@ class SP(BaseCausalDiscovery):
 
     search_depth : int, default=4
         Only used when ``variant="greedy"``. Maximum number of consecutive non-improving steps to take during the
-        depth-first search over covered-arrow reversals before restarting from a new permutation. The average Markov
-        equivalence class has around 4 members, so the default of 4 is usually sufficient to escape a Markov equivalence
-        class of minimal I-MAPs.
+        depth-first search over covered-arrow reversals before backtracking / restarting from a new permutation. The
+        average Markov equivalence class has around 4 members, so the default of 4 is usually sufficient to escape a
+        Markov equivalence class of minimal I-MAPs.
 
     n_runs : int, default=10
         Only used when ``variant="greedy"``. Number of independent GSP restarts from random starting permutations. It is
@@ -83,8 +86,8 @@ class SP(BaseCausalDiscovery):
 
     optimal_permutations_ : list[tuple]
         For ``variant="exhaustive"``, all permutations that produce a DAG with the minimum number of edges. For
-        ``variant="greedy"``, the starting permutations of the runs (out of `n_runs`) that produced the minimum number
-        of edges found; this is not a guarantee that all globally optimal permutations were found.
+        ``variant="greedy"``, a topological ordering of the sparsest DAG found by each run (out of `n_runs`) that tied
+        for the minimum number of edges; this is not a guarantee that all globally optimal DAGs were found.
 
     n_features_in_ : int
         The number of features in the data used to learn the causal graph.
@@ -193,36 +196,70 @@ class SP(BaseCausalDiscovery):
 
         return edges
 
-    def _reverse_covered_edges(self, G: DAG) -> list[DAG]:
+    def _reverse_covered_edges(self, model: DAG) -> list[DAG]:
         """
-        Return every DAG obtainable from G by reversing a single covered arrow.
+        Return every DAG obtainable from `model` by reversing a single covered arrow, with any edges that become
+        redundant as a result of the reversal already dropped.
 
         An arrow u -> v is covered if Pa(u) = Pa(v) - {u}. Reversing a covered arrow produces a DAG that is Markov
-        equivalent to G (same skeleton, same number of edges), these are exactly the neighbors that the greedy search
-        walks between while looking for a sparser I-MAP. To actually test whether a neighbor leads somewhere sparser,
-        take a linear extension of it and rebuild the I-MAP from that ordering via `_build_imap_edges`.
+        equivalent to `model` (same skeleton, same number of edges) *before* accounting for redundant edges. Since
+        u -> v is covered, Pa(u) = Pa(v) - {u}, so looping over Pa(u) visits every common parent of u and v. After
+        reversing the arrow, u gains v as a new parent while v loses u as a parent (its other parents are unchanged).
+        For each common parent p, we test whether p is still needed as a parent of u given u's new parent set
+        (Pa(u) - {p} + {v}), and whether p is still needed as a parent of v given its new parent set (Pa(u) - {p});
+        edges found to be redundant this way are dropped from the returned neighbor DAG. This is what makes it
+        possible to find a sparser I-MAP by walking between Markov equivalent DAGs.
+
+        `model` itself is never mutated; each neighbor is built fresh from `model`'s nodes and edges.
 
         Parameters
         ----------
-        G : DAG
+        model : DAG
             The current DAG.
 
         Returns
         -------
         list[DAG]
-            One DAG per covered arrow in G, each with that arrow reversed.
+            One DAG per covered arrow in `model`, with that arrow reversed and any now-redundant edges removed.
         """
         neighbors = []
 
-        for u, v in G.edges():
-            parents_u = set(G.predecessors(u))
-            parents_v = set(G.predecessors(v))
+        for u, v in model.edges():
+            parents_u = model.get_parents(u)
+            parents_v = model.get_parents(v)
 
-            if parents_u == (parents_v - {u}):
-                new_graph = G.copy()
-                new_graph.remove_edge(u, v)
-                new_graph.add_edge(v, u)
-                neighbors.append(new_graph)
+            if parents_u != (parents_v - {u}):
+                continue
+
+            removed_edges = set()
+            for parent in parents_u:
+                rest = parents_u - {parent}
+
+                independent_u = self.ci_test_(
+                    X=parent,
+                    Y=u,
+                    Z=list(rest) + [v],
+                    significance_level=self.significance_level,
+                )
+                if independent_u:
+                    removed_edges.add((parent, u))
+
+                independent_v = self.ci_test_(
+                    X=parent,
+                    Y=v,
+                    Z=list(rest),
+                    significance_level=self.significance_level,
+                )
+                if independent_v:
+                    removed_edges.add((parent, v))
+
+            new_edges = [edge for edge in model.edges() if edge != (u, v) and edge not in removed_edges]
+            new_edges.append((v, u))
+
+            new_model = DAG()
+            new_model.add_nodes_from(model.nodes())
+            new_model.add_edges_from(new_edges)
+            neighbors.append(new_model)
 
         return neighbors
 
@@ -304,51 +341,78 @@ class SP(BaseCausalDiscovery):
             ) as pbar:
                 for run in range(self.n_runs):
                     # Choose a random starting permutation for this run.
-                    starting_permutation = nodes.copy()
+                    starting_permutation = list(nodes)
                     rng.shuffle(starting_permutation)
                     starting_permutation = tuple(starting_permutation)
 
-                    permutation = starting_permutation
-                    edges = self._build_imap_edges(permutation)
+                    edges = self._build_imap_edges(starting_permutation)
                     model = DAG()
-                    model.add_nodes_from(permutation)
+                    model.add_nodes_from(starting_permutation)
                     model.add_edges_from(edges)
 
-                    depth = 0
-                    while depth < self.search_depth:
-                        moved = False
+                    best_model = model
+                    neighbors = self._reverse_covered_edges(model)
+                    all_visited = {frozenset(model.edges())}
+                    trace = []
 
-                        for neighbor in self._reverse_covered_edges(model):
-                            candidate_permutation = tuple(nx.topological_sort(neighbor))
-                            candidate_edges = self._build_imap_edges(candidate_permutation, n_edge_limit=len(edges))
-                            if candidate_edges is None:
-                                continue
+                    while True:
+                        max_removed = (
+                            max(len(model.edges()) - len(neighbor.edges()) for neighbor in neighbors)
+                            if neighbors
+                            else 0
+                        )
 
-                            if len(candidate_edges) <= len(edges):
-                                if len(candidate_edges) < len(edges):
-                                    depth = 0
-                                permutation, edges = candidate_permutation, candidate_edges
-                                model = DAG()
-                                model.add_nodes_from(permutation)
-                                model.add_edges_from(edges)
-                                moved = True
+                        can_step = neighbors and (
+                            len(trace) != self.search_depth or max_removed > 0
+                        )
+
+                        if can_step:
+                            if max_removed > 0:
+                                # A sparser I-MAP is reachable: take the best reversal and restart the search.
+                                trace = []
+                                all_visited = set()
+                                candidate_idxs = [
+                                    idx
+                                    for idx, neighbor in enumerate(neighbors)
+                                    if len(model.edges()) - len(neighbor.edges()) == max_removed
+                                ]
+                                chosen_idx = candidate_idxs[rng.integers(len(candidate_idxs))]
+                                model = neighbors.pop(chosen_idx)
+                                if len(model.edges()) < len(best_model.edges()):
+                                    best_model = model
+                            else:
+                                # No reversal helps directly: take a non-improving step to escape this
+                                # equivalence class.
+                                trace.append((model, neighbors))
+                                chosen_idx = rng.integers(len(neighbors))
+                                model = neighbors.pop(chosen_idx)
+
+                            all_visited.add(frozenset(model.edges()))
+                            neighbors = self._reverse_covered_edges(model)
+
+                            # Drop moves that would lead back to an already-visited DAG.
+                            neighbors = [
+                                neighbor
+                                for neighbor in neighbors
+                                if frozenset(neighbor.edges()) not in all_visited
+                            ]
+                        else:
+                            if not trace:
+                                # Reached a local minimum within the search depth: stop this run.
                                 break
+                            model, neighbors = trace.pop()
 
-                        depth += 1
-                        if not moved:
-                            break
-
-                    n_edges = len(edges)
+                    n_edges = len(best_model.edges())
 
                     # If new graph with minimum edges is found, it restarts the list of optimal permutations
                     if n_edges < min_edges:
                         min_edges = n_edges
-                        best_ordering = permutation
-                        best_edges = edges
-                        optimal_permutations = [starting_permutation]
+                        best_ordering = tuple(nx.topological_sort(best_model))
+                        best_edges = list(best_model.edges())
+                        optimal_permutations = [best_ordering]
                     # If the graph is tied with current minimum, it adds it to the list
                     elif n_edges == min_edges:
-                        optimal_permutations.append(starting_permutation)
+                        optimal_permutations.append(tuple(nx.topological_sort(best_model)))
 
                     pbar.set_postfix(run=run + 1, best_edges=min_edges, last_run_edges=n_edges)
                     pbar.update(1)
