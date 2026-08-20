@@ -86,10 +86,6 @@ class SP(BaseCausalDiscovery):
     optimal_permutations_ : list[tuple]
         Only set when `variant="exhaustive"`. All permutations that produce a DAG with the minimum number of edges.
 
-    restart_n_edges_ : list[int]
-        Only set when `variant="greedy"`. The number of edges of the final DAG found by each restart, in the order the
-        restarts were run. Useful for sanity-checking how much variance there is across restarts.
-
     n_features_in_ : int
         The number of features in the data used to learn the causal graph.
 
@@ -362,7 +358,7 @@ class SP(BaseCausalDiscovery):
             for permutation in tqdm(
                 permutation_iter,
                 total=n_iterations,
-                desc="Searching over permutations",
+                desc="Running Sparest Permutation (SP) Algorithm over permutations",
                 disable=not (self.show_progress and config.SHOW_PROGRESS),
             ):
                 edges = self._build_imap_edges(permutation, n_edge_limit=min_edges)
@@ -390,11 +386,10 @@ class SP(BaseCausalDiscovery):
         else:
             best_dag = None
             best_n_edges = np.inf
-            self.restart_n_edges_ = []
 
             for _ in tqdm(
                 range(self.n_restarts),
-                desc="Running GSP restarts",
+                desc="Running Greedy Sparsest Permutation (GSP) Algorithm ",
                 disable=not (self.show_progress and config.SHOW_PROGRESS),
             ):
                 permutation = nodes.copy()
@@ -407,7 +402,6 @@ class SP(BaseCausalDiscovery):
                 final_dag = self._greedy_search(start_dag, rng)
 
                 n_edges = len(final_dag.edges())
-                self.restart_n_edges_.append(n_edges)
 
                 if n_edges < best_n_edges:
                     best_n_edges = n_edges
