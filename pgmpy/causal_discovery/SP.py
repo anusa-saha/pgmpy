@@ -115,7 +115,7 @@ class SP(BaseCausalDiscovery):
 
     >>> gsp = SP(ci_test="chi_square", variant="greedy", depth=4, n_restarts=10)
     >>> gsp.fit(df)
-    SP(ci_test='chi_square', depth=4, n_restarts=10, variant='greedy')
+    SP(ci_test='chi_square', n_restarts=10, variant='greedy')
     >>> gsp.causal_graph_  # doctest: +ELLIPSIS
     <pgmpy.base.DAG.DAG object at 0x...>
 
