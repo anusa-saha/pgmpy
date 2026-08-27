@@ -59,7 +59,7 @@ class TestSP:
 
 class TestGSP:
     def test_greedy_recovery_and_attributes(self, cancer_data):
-        est = SP(ci_test="g_sq", variant="greedy", search_depth=4, n_restarts=5, seed=42)
+        est = SP(ci_test="g_sq", variant="greedy", seed=42)
         est.fit(cancer_data)
         assert isinstance(est.causal_graph_, DAG)
 
