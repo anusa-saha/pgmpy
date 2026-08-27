@@ -119,6 +119,7 @@ class SP(BaseCausalDiscovery):
     References
     ----------
     - :footcite:t:`raskutti2019learningdirectedacyclicgraphs`
+    - :footcite:t:`solus2021consistency`
     """
 
     def __init__(
@@ -128,7 +129,7 @@ class SP(BaseCausalDiscovery):
         variant: str = "exhaustive",
         max_iter: int | None = None,
         search_depth: int | None = 4,
-        n_restarts: int = 1,
+        n_restarts: int = 10,
         return_type: str = "dag",
         show_progress: bool = True,
         seed: int | None = None,
