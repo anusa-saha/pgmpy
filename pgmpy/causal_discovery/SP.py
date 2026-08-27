@@ -21,12 +21,16 @@ class SP(BaseCausalDiscovery):
     The algorithm is statistically consistent under the Sparsest Markov Representation (SMR) assumption, which is weaker
     than the restricted faithfulness assumption required by many constraint-based methods.
 
-    Setting ``variant="greedy"`` instead runs the Greedy Sparsest Permutation (GSP) algorithm, a bounded approximation
-    of SP that scales to much larger variable sets by performing a depth-first search over covered-edge reversals from a
-    small number of random starting permutations instead of exhaustively enumerating all permutations. At each step, the
-    search greedily reverses the covered edge that removes the most redundant edges; if no reversal removes any edges,
-    it takes a non-improving step (up to `depth` of them, with backtracking) to escape the current Markov equivalence
-    class in search of a sparser one.
+    Two search variants are supported:
+
+    - 'exhaustive': The original sparsest permutation algorithm, every permutation of the variables (up to `max_iter`)
+      is scored, and the sparsest I-MAP found across all of them is returned. This guarantees finding the globally
+      sparsest I-MAP, but runs in the worst case in O(n!) time.
+    - 'greedy': The greedy sparsest permutation algorithm, starting from a random ordering, the current I-MAP's covered
+      edges are reversed via a bounded-depth depth-first search, moving to any resulting I-MAP that is strictly sparser,
+      until no such move can be found within `search_depth` reversals. This is repeated from `n_restarts` random
+      orderings, and the sparsest I-MAP found across all restarts is returned. This scales to hundreds of variables and
+      is the version recommended for most applications.
 
     Parameters
     ----------
@@ -40,16 +44,23 @@ class SP(BaseCausalDiscovery):
         Significance level used by the conditional independence test.
 
     variant : str, default='exhaustive'
-        Which search strategy to use. Options are:
+        The search strategy to use. Options are:
 
-        - 'exhaustive': The original Sparsest Permutation (SP) algorithm, searching over all (or up to `max_iter`)
-          permutations.
-        - 'greedy': The Greedy Sparsest Permutation (GSP) algorithm, searching over covered-edge reversals from
-          `n_restarts` random starting permutations, up to `depth` non-improving steps each.
+        - 'exhaustive': Full search over permutations, controlled by `max_iter`.
+        - 'greedy': Bounded-depth local search with random restarts, controlled by `search_depth` and `n_restarts`.
 
     max_iter : int or None, default=None
-        Maximum number of permutations to evaluate. If None, all possible permutations are considered. Only used when
-        ``variant="exhaustive"``; ignored when ``variant="greedy"``.
+        Maximum number of permutations to evaluate. Only used when `variant='exhaustive'`. If None, all possible
+        permutations are considered.
+
+    search_depth : int or None, default=4
+        Maximum number of covered edge reversals to explore at each step before giving up on finding a sparser I-MAP.
+        Only used when `variant='greedy'`. The average Markov equivalence class contains around four graphs, so a depth
+        of 4 is typically sufficient to escape it.
+
+    n_restarts : int, default=10
+        Number of random initial orderings to run the greedy search from. Only used when `variant='greedy'`. The
+        sparsest I-MAP found across all restarts is returned.
 
     return_type : str, default='dag'
         The type of graph to return. Options are:
@@ -57,23 +68,11 @@ class SP(BaseCausalDiscovery):
         - 'dag': Returns a directed acyclic graph (DAG).
         - 'pdag': Returns a partially directed acyclic graph (PDAG).
 
-    depth : int or None, default=4
-        Only used when ``variant="greedy"``. Maximum number of consecutive non-improving steps to take during the
-        depth-first search over covered-edge reversals before backtracking / restarting from a new permutation. The
-        average Markov equivalence class has around 4 members, so the default of 4 is usually sufficient to escape a
-        Markov equivalence class of minimal I-MAPs. Use None to search with unlimited depth.
-
-    n_restarts : int, default=5
-        Only used when ``variant="greedy"``. Number of independent GSP restarts from random starting permutations. It is
-        recommended to scale this with the number of variables (e.g. `n_restarts` on the order of the number of
-        variables) for reliable recovery in the low-dimensional regime; for large, sparse, high-dimensional graphs, a
-        small `depth` (e.g. 1) with many restarts (e.g. 50) is more computationally efficient.
-
     show_progress : bool, default=True
         If True, shows a progress bar while learning the causal structure.
 
     seed : int or None, default=None
-        Seed for the random number generator used to shuffle the variables before searching over permutations.
+        Seed for the random number generator used to shuffle/sample the variable orderings.
 
     Attributes
     ----------
@@ -84,7 +83,7 @@ class SP(BaseCausalDiscovery):
         Adjacency matrix representation of the learned causal graph.
 
     optimal_permutations_ : list[tuple]
-        Only set when `variant="exhaustive"`. All permutations that produce a DAG with the minimum number of edges.
+        All permutations found that produce a DAG with the minimum number of edges.
 
     n_features_in_ : int
         The number of features in the data used to learn the causal graph.
@@ -111,13 +110,11 @@ class SP(BaseCausalDiscovery):
     >>> sp.n_features_in_
     5
 
-    Use the greedy GSP variant instead, which scales to much larger variable sets:
+    Or use the greedy variant, which scales to much larger numbers of variables:
 
-    >>> gsp = SP(ci_test="chi_square", variant="greedy", depth=4, n_restarts=10)
-    >>> gsp.fit(df)
+    >>> sp_greedy = SP(ci_test="chi_square", variant="greedy", search_depth=4, n_restarts=10)
+    >>> sp_greedy.fit(df)
     SP(ci_test='chi_square', n_restarts=10, variant='greedy')
-    >>> gsp.causal_graph_  # doctest: +ELLIPSIS
-    <pgmpy.base.DAG.DAG object at 0x...>
 
     References
     ----------
@@ -130,8 +127,8 @@ class SP(BaseCausalDiscovery):
         significance_level: float = 0.01,
         variant: str = "exhaustive",
         max_iter: int | None = None,
-        depth: int | None = 4,
-        n_restarts: int = 5,
+        search_depth: int | None = 4,
+        n_restarts: int = 10,
         return_type: str = "dag",
         show_progress: bool = True,
         seed: int | None = None,
@@ -140,7 +137,7 @@ class SP(BaseCausalDiscovery):
         self.significance_level = significance_level
         self.variant = variant
         self.max_iter = max_iter
-        self.depth = depth
+        self.search_depth = search_depth
         self.n_restarts = n_restarts
         self.return_type = return_type
         self.show_progress = show_progress
@@ -166,7 +163,7 @@ class SP(BaseCausalDiscovery):
 
         n_edge_limit : int, default=np.inf
             Maximum number of edges allowed during construction. Returns None if the edge count exceeds this value,
-            enabling early pruning of unpromising permutations. Only used by the exhaustive variant.
+            enabling early pruning of unpromising permutations.
 
         Returns
         -------
@@ -193,121 +190,79 @@ class SP(BaseCausalDiscovery):
 
         return edges
 
-    def _covered_edge_reversals(self, dag: DAG) -> list[tuple[DAG, int]]:
+    def _find_sparser_imap(
+        self,
+        permutation: tuple[str, ...],
+        edges: list[tuple[str, str]],
+        max_depth: int | None,
+    ) -> tuple[tuple[str, ...], list[tuple[str, str]]] | None:
         """
-        Find every covered edge in `dag` and return, for each one, the DAG obtained by reversing it (with any
-        now-redundant edges trimmed away) together with how many edges were trimmed. Only used by the greedy variant.
+        Depth-first search for a sparser minimal I-MAP reachable from the current one via a weakly decreasing sequence
+        of covered edge reversals.
 
-        An edge u -> v is "covered" if parents(u) == parents(v) - {u}. Reversing a covered edge always yields another
-        DAG in the same Markov equivalence class and preserves acyclicity, which is what makes it a valid local move for
-        the search. Since u -> v is covered, parents(u) is exactly the set of parents shared by u and v; after reversing
-        the edge, parents(u) becomes that shared set plus v, and parents(v) becomes just the shared set, so each shared
-        parent is re-tested for conditional independence under its new conditioning set and dropped if it's no longer
-        needed.
+        An edge (u, v) is covered if u and v have exactly the same parents, aside from u itself being a parent of v.
+        Reversing a covered edge corresponds to swapping u and v in the ordering and rebuilding the I-MAP from that new
+        ordering; this always produces a valid I-MAP, sometimes with the same number of edges and occasionally with
+        strictly fewer. The search explores such reversals depth-first, up to `max_depth` reversals from the starting
+        I-MAP (unbounded if `max_depth` is None), and returns as soon as it finds an I-MAP with strictly fewer edges
+        than the starting one.
 
         Parameters
         ----------
-        dag : DAG
-            The current DAG.
+        permutation : tuple of str
+            The ordering whose I-MAP the search starts from.
+
+        edges : list[tuple[str, str]]
+            The edges of the I-MAP corresponding to `permutation`.
+
+        max_depth : int or None
+            Maximum number of covered edge reversals to explore. If None, the search is unbounded.
 
         Returns
         -------
-        list[tuple[DAG, int]]
-            One (new_dag, n_edges_removed) pair per covered edge in `dag`, where new_dag has that edge reversed and any
-            now-redundant edges removed, and n_edges_removed is how many edges were removed during that trimming.
+        tuple[tuple[str, ...], list[tuple[str, str]]] or None
+            The (ordering, edges) of a sparser I-MAP if one was found within `max_depth` reversals, else None.
         """
-        moves = []
+        start_n_edges = len(edges)
+        visited = {frozenset(edges)}
+        stack = [(permutation, edges, 0)]
 
-        for u, v in dag.edges():
-            shared_parents = set(dag.get_parents(u))
-            parents_v = set(dag.get_parents(v)) - {u}
-            if shared_parents != parents_v:
-                continue  # u -> v is not covered
+        while stack:
+            perm, es, depth = stack.pop()
 
-            new_dag = dag.copy()
-            new_dag.remove_edge(u, v)
-            new_dag.add_edge(v, u)
+            if max_depth is not None and depth >= max_depth:
+                continue
 
-            n_removed = 0
-            for parent in shared_parents:
-                rest = shared_parents - {parent}
+            parents = {}
+            for u, v in es:
+                parents.setdefault(v, set()).add(u)
 
-                # After the reversal, parents(u) = shared_parents U {v}. Test whether `parent` is
-                # still needed given the rest of the shared parents plus the newly reversed edge.
-                independent_u = self.ci_test_(
-                    X=u,
-                    Y=parent,
-                    Z=list(rest | {v}),
-                    significance_level=self.significance_level,
-                )
-                if independent_u:
-                    new_dag.remove_edge(parent, u)
-                    n_removed += 1
+            for u, v in es:
+                # (u, v) is covered if u and v have identical parent sets, other than u being a parent of v.
+                if parents.get(u, set()) != parents.get(v, set()) - {u}:
+                    continue
 
-                # After the reversal, parents(v) = shared_parents. Test whether `parent` is still
-                # needed given the rest of the shared parents.
-                independent_v = self.ci_test_(
-                    X=v,
-                    Y=parent,
-                    Z=list(rest),
-                    significance_level=self.significance_level,
-                )
-                if independent_v:
-                    new_dag.remove_edge(parent, v)
-                    n_removed += 1
+                new_perm = list(perm)
+                idx_u, idx_v = new_perm.index(u), new_perm.index(v)
+                new_perm[idx_u], new_perm[idx_v] = new_perm[idx_v], new_perm[idx_u]
+                new_perm = tuple(new_perm)
 
-            moves.append((new_dag, n_removed))
+                new_edges = self._build_imap_edges(new_perm)
+                key = frozenset(new_edges)
+                if key in visited:
+                    continue
+                visited.add(key)
 
-        return moves
+                if len(new_edges) < start_n_edges:
+                    return new_perm, new_edges
 
-    def _greedy_search(self, start_dag: DAG, rng: np.random.Generator) -> DAG:
-        """
-        Depth-first search over covered-edge reversals starting from `start_dag`, looking for a strictly sparser DAG
-        within `self.depth` non-improving hops. Only used by the greedy variant.
+                stack.append((new_perm, new_edges, depth + 1))
 
-        At every state, all covered-edge reversals are evaluated. If any reversal makes the DAG strictly sparser, the
-        search jumps to one such DAG (picked at random among the sparser options) and restarts its depth-first
-        exploration from there. Otherwise, the search explores same-size neighbours depth-first (up to `self.depth`),
-        backtracking when it runs out of unexplored, same-size neighbours. The search stops -- for this restart -- once
-        no unvisited neighbour (sparser or same-size, within depth) remains.
-        """
-        current_dag = start_dag
-        trace = []
-        visited = set()
-
-        while True:
-            visited.add(frozenset(current_dag.edges()))
-
-            candidate_moves = [
-                (n_removed, new_dag)
-                for new_dag, n_removed in self._covered_edge_reversals(current_dag)
-                if frozenset(new_dag.edges()) not in visited
-            ]
-
-            sparser_dags = [d for n, d in candidate_moves if n > 0]
-
-            if sparser_dags:
-                # Found a sparser I-MAP: jump there and restart the local search.
-                current_dag = sparser_dags[rng.integers(len(sparser_dags))]
-                trace = []
-                visited = set()
-            elif candidate_moves and (self.depth is None or len(trace) < self.depth):
-                # No sparser I-MAP available: explore a same-size neighbour depth-first.
-                lateral_dags = [d for n, d in candidate_moves if n == 0]
-                trace.append(current_dag)
-                current_dag = lateral_dags[rng.integers(len(lateral_dags))]
-            elif trace:
-                # Dead end: backtrack.
-                current_dag = trace.pop()
-            else:
-                # No moves left and nothing to backtrack to: this restart is done.
-                break
-
-        return current_dag
+        return None
 
     def _fit(self, X: pd.DataFrame):
         """
-        The fitting procedure for the SP algorithm. Runs the exhaustive or greedy search depending on `self.variant`.
+        The fitting procedure for the SP algorithm.
 
         Parameters
         ----------
@@ -320,37 +275,27 @@ class SP(BaseCausalDiscovery):
             Returns the instance with the fitted attributes.
         """
         # Step 0: Check inputs.
-        variant = self.variant.lower()
-        if variant not in ("exhaustive", "greedy"):
+        if self.variant.lower() not in ("exhaustive", "greedy"):
             raise ValueError(f"variant must be one of: exhaustive, greedy. Got: {self.variant}")
+        if self.max_iter is not None and self.max_iter < 1:
+            raise ValueError(f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}.")
         if self.return_type.lower() not in ("dag", "pdag"):
             raise ValueError(f"return_type must be one of: dag, pdag. Got: {self.return_type}")
-
-        if variant == "exhaustive":
-            if self.max_iter is not None and self.max_iter < 1:
-                raise ValueError(
-                    f"max_iter must be at least 1 to evaluate at least one permutation, got {self.max_iter}."
-                )
-        else:
-            if self.n_restarts < 1:
-                raise ValueError(f"n_restarts must be at least 1, got {self.n_restarts}.")
-            if self.depth is not None and self.depth < 0:
-                raise ValueError(f"depth must be non-negative or None, got {self.depth}.")
 
         # Step 1: Initialize variables and data structures.
         self.ci_test_ = get_ci_test(test=self.ci_test, data=X)
         nodes = list(self.feature_names_in_)
         rng = np.random.default_rng(self.seed)
 
-        # Step 2: Run the search.
-        if variant == "exhaustive":
+        min_edges = np.inf
+        best_ordering = None
+        best_edges = None
+        optimal_permutations = []
+
+        # Step 2: Run the search, either over all permutations (exhaustive) or via bounded-depth local search with
+        # random restarts (greedy)
+        if self.variant.lower() == "exhaustive":
             rng.shuffle(nodes)
-
-            min_edges = np.inf
-            best_ordering = None
-            best_edges = None
-            optimal_permutations = []
-
             max_permutations = factorial(len(nodes))
             n_iterations = min(self.max_iter, max_permutations) if self.max_iter is not None else max_permutations
             permutation_iter = islice(permutations(nodes), n_iterations)
@@ -358,7 +303,7 @@ class SP(BaseCausalDiscovery):
             for permutation in tqdm(
                 permutation_iter,
                 total=n_iterations,
-                desc="Running Sparest Permutation (SP) Algorithm over permutations",
+                desc="Searching over permutations",
                 disable=not (self.show_progress and config.SHOW_PROGRESS),
             ):
                 edges = self._build_imap_edges(permutation, n_edge_limit=min_edges)
@@ -366,52 +311,49 @@ class SP(BaseCausalDiscovery):
                     continue
 
                 n_edges = len(edges)
-
-                # If new graph with minimum edges is found, it restarts the list of optimal permutations
                 if n_edges < min_edges:
                     min_edges = n_edges
                     best_ordering = permutation
                     best_edges = edges
                     optimal_permutations = [permutation]
-                # If the graph is tied with current minimum, it adds it to the list
                 elif n_edges == min_edges:
                     optimal_permutations.append(permutation)
 
-            self.optimal_permutations_ = optimal_permutations
-
-            best_dag = DAG()
-            best_dag.add_nodes_from(best_ordering)
-            best_dag.add_edges_from(best_edges)
-
-        else:
-            best_dag = None
-            best_n_edges = np.inf
-
+        else:  # variant == "greedy"
             for _ in tqdm(
                 range(self.n_restarts),
-                desc="Running Greedy Sparsest Permutation (GSP) Algorithm ",
+                desc="Running greedy sparsest permutation search",
                 disable=not (self.show_progress and config.SHOW_PROGRESS),
             ):
-                permutation = nodes.copy()
-                rng.shuffle(permutation)
-                permutation = tuple(permutation)
+                permutation = tuple(rng.permutation(nodes))
+                edges = self._build_imap_edges(permutation)
 
-                start_dag = DAG()
-                start_dag.add_nodes_from(permutation)
-                start_dag.add_edges_from(self._build_imap_edges(permutation))
-                final_dag = self._greedy_search(start_dag, rng)
+                while True:
+                    sparser = self._find_sparser_imap(permutation, edges, self.search_depth)
+                    if sparser is None:
+                        break
+                    permutation, edges = sparser
 
-                n_edges = len(final_dag.edges())
+                n_edges = len(edges)
+                if n_edges < min_edges:
+                    min_edges = n_edges
+                    best_ordering = permutation
+                    best_edges = edges
+                    optimal_permutations = [permutation]
+                elif n_edges == min_edges:
+                    optimal_permutations.append(permutation)
 
-                if n_edges < best_n_edges:
-                    best_n_edges = n_edges
-                    best_dag = final_dag
+        self.optimal_permutations_ = optimal_permutations
 
-        # Step 3: Assign attributes.
+        # Step 3: Construct the DAG using the optimal permutation and assign attributes.
+        current_model = DAG()
+        current_model.add_nodes_from(best_ordering)
+        current_model.add_edges_from(best_edges)
+
         if self.return_type.lower() == "dag":
-            self.causal_graph_ = best_dag
+            self.causal_graph_ = current_model
         elif self.return_type.lower() == "pdag":
-            self.causal_graph_ = best_dag.to_pdag()
+            self.causal_graph_ = current_model.to_pdag()
 
         self.adjacency_matrix_ = self.causal_graph_.to_adjacency(
             encoding="binary", nodelist=list(self.causal_graph_.nodes())
