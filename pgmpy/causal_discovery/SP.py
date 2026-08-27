@@ -326,7 +326,7 @@ class SP(BaseCausalDiscovery):
                 desc="Running greedy sparsest permutation search",
                 disable=not (self.show_progress and config.SHOW_PROGRESS),
             ):
-                permutation = tuple(str(n) for n in rng.permutation(nodes))
+                permutation = tuple(rng.permutation(nodes))
                 edges = self._build_imap_edges(permutation)
 
                 while True:
