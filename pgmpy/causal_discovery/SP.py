@@ -25,12 +25,12 @@ class SP(BaseCausalDiscovery):
 
     - 'exhaustive': The original sparsest permutation algorithm, every permutation of the variables (up to `max_iter`)
       is scored, and the sparsest I-MAP found across all of them is returned. This guarantees finding the globally
-      sparsest I-MAP, but runs in the worst case in O(n!) time.
-    - 'greedy': The greedy sparsest permutation algorithm, starting from a random ordering, the current I-MAP's covered
-      edges are reversed via a bounded-depth depth-first search, moving to any resulting I-MAP that is strictly sparser,
-      until no such move can be found within `search_depth` reversals. This is repeated from `n_restarts` random
-      orderings, and the sparsest I-MAP found across all restarts is returned. This scales to hundreds of variables and
-      is the version recommended for most applications.
+      sparsest I-MAP, but runs in the worst case in O(p!) time.
+    - 'greedy': The greedy sparsest permutation algorithm, starting from a random ordering, the current
+      I-MAP's covered edges are reversed via a bounded-depth depth-first search, moving to any resulting I-MAP that
+      is strictly sparser, until no such move can be found within `search_depth` reversals. This is repeated from
+      `n_restarts` random orderings, and the sparsest I-MAP found across all restarts is returned. This scales to
+      hundreds of variables and is the version recommended for most applications.
 
     Parameters
     ----------
@@ -54,7 +54,7 @@ class SP(BaseCausalDiscovery):
         permutations are considered.
 
     search_depth : int or None, default=4
-        Maximum number of covered edge reversals to explore at each step before giving up on finding a sparser I-MAP.
+        Maximum number of covered arrow reversals to explore at each step before giving up on finding a sparser I-MAP.
         Only used when `variant='greedy'`. The average Markov equivalence class contains around four graphs, so a depth
         of 4 is typically sufficient to escape it.
 
@@ -110,11 +110,11 @@ class SP(BaseCausalDiscovery):
     >>> sp.n_features_in_
     5
 
-    Or use the greedy variant, which scales to much larger numbers of variables:
+    Or use the greedy variant (Algorithm 4), which scales to much larger numbers of variables:
 
     >>> sp_greedy = SP(ci_test="chi_square", variant="greedy", search_depth=4, n_restarts=10)
     >>> sp_greedy.fit(df)
-    SP(ci_test='chi_square', n_restarts=10, variant='greedy')
+    SP(ci_test='chi_square', variant='greedy')
 
     References
     ----------
@@ -128,7 +128,7 @@ class SP(BaseCausalDiscovery):
         variant: str = "exhaustive",
         max_iter: int | None = None,
         search_depth: int | None = 4,
-        n_restarts: int = 10,
+        n_restarts: int = 1,
         return_type: str = "dag",
         show_progress: bool = True,
         seed: int | None = None,
@@ -200,12 +200,12 @@ class SP(BaseCausalDiscovery):
         Depth-first search for a sparser minimal I-MAP reachable from the current one via a weakly decreasing sequence
         of covered edge reversals.
 
-        An edge (u, v) is covered if u and v have exactly the same parents, aside from u itself being a parent of v.
-        Reversing a covered edge corresponds to swapping u and v in the ordering and rebuilding the I-MAP from that new
-        ordering; this always produces a valid I-MAP, sometimes with the same number of edges and occasionally with
-        strictly fewer. The search explores such reversals depth-first, up to `max_depth` reversals from the starting
-        I-MAP (unbounded if `max_depth` is None), and returns as soon as it finds an I-MAP with strictly fewer edges
-        than the starting one.
+        An edge (u, v) is covered if u and v have exactly the same parents, aside from u itself being a parent of v;
+        this is checked via `DAG.get_parents` on the I-MAP built at each step of the search. Reversing a covered edge
+        corresponds to swapping u and v in the ordering and rebuilding the I-MAP from that new ordering; this always
+        produces a valid I-MAP, sometimes with the same number of edges and occasionally with strictly fewer. The search
+        explores such reversals depth-first, up to `max_depth` reversals from the starting I-MAP (unbounded if
+        `max_depth` is None), and returns as soon as it finds an I-MAP with strictly fewer edges than the starting one.
 
         Parameters
         ----------
@@ -233,13 +233,13 @@ class SP(BaseCausalDiscovery):
             if max_depth is not None and depth >= max_depth:
                 continue
 
-            parents = {}
-            for u, v in es:
-                parents.setdefault(v, set()).add(u)
+            imap = DAG()
+            imap.add_nodes_from(perm)
+            imap.add_edges_from(es)
 
             for u, v in es:
                 # (u, v) is covered if u and v have identical parent sets, other than u being a parent of v.
-                if parents.get(u, set()) != parents.get(v, set()) - {u}:
+                if set(imap.get_parents(u)) != set(imap.get_parents(v)) - {u}:
                     continue
 
                 new_perm = list(perm)
