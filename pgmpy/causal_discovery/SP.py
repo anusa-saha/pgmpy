@@ -26,9 +26,9 @@ class SP(BaseCausalDiscovery):
     - 'exhaustive': The original sparsest permutation algorithm, every permutation of the variables (up to `max_iter`)
       is scored, and the sparsest I-MAP found across all of them is returned. This guarantees finding the globally
       sparsest I-MAP, but runs in the worst case in O(p!) time.
-    - 'greedy': The greedy sparsest permutation algorithm, starting from a random ordering, adjacent pairs of the
-      current I-MAP's covered edges are reversed via a bounded-depth depth-first search, moving to any resulting I-MAP
-      that is strictly sparser, until no such move can be found within `search_depth` reversals. This is repeated from
+    - 'greedy': The greedy sparsest permutation algorithm, starting from a random ordering, the current
+      I-MAP's covered edges are reversed via a bounded-depth depth-first search, moving to any resulting I-MAP that
+      is strictly sparser, until no such move can be found within `search_depth` reversals. This is repeated from
       `n_restarts` random orderings, and the sparsest I-MAP found across all restarts is returned. This scales to
       hundreds of variables and is the version recommended for most applications.
 
@@ -54,7 +54,7 @@ class SP(BaseCausalDiscovery):
         permutations are considered.
 
     search_depth : int or None, default=4
-        Maximum number of covered edge reversals to explore at each step before giving up on finding a sparser I-MAP.
+        Maximum number of covered arrow reversals to explore at each step before giving up on finding a sparser I-MAP.
         Only used when `variant='greedy'`. The average Markov equivalence class contains around four graphs, so a depth
         of 4 is typically sufficient to escape it.
 
@@ -191,56 +191,6 @@ class SP(BaseCausalDiscovery):
 
         return edges
 
-    def _reverse_covered_edge(
-        self,
-        edges: list[tuple[str, str]],
-        u: str,
-        v: str,
-        shared_parents: set[str],
-    ) -> list[tuple[str, str]]:
-        """
-        Build the I-MAP that results from reversing the covered edge u -> v, without rebuilding the whole ordering from
-        scratch.
-
-        After reversing a covered edge the only conditional independence relations that can change are those between {u,
-        v} and their shared parent set S; every other edge in the I-MAP (including all edges from u or v to their common
-        descendants) is provably unaffected by the reversal, since swapping u and v's relative order doesn't change
-        which set of variables anyone else's CI tests condition on. The u-v edge itself always survives the reversal
-        too, just flipped, since independence is a symmetric relation and neither endpoint's conditioning set changes.
-
-        This local update is only valid when u and v are adjacent in the ordering (see `_find_sparser_imap`); that's
-        what guarantees no third variable's predecessor set is disturbed by the swap.
-
-        Parameters
-        ----------
-        edges : list[tuple[str, str]]
-            The edges of the I-MAP before the reversal.
-
-        u, v : str
-            The covered edge u -> v being reversed. u and v must be adjacent in the ordering that produced `edges`.
-
-        shared_parents : set[str]
-            The parents shared by u and v (i.e. Pa(u), which by the covered-edge condition equals Pa(v) \\ {u}).
-
-        Returns
-        -------
-        list[tuple[str, str]]
-            The edges of the I-MAP after reversing u -> v.
-        """
-        affected = shared_parents | {u, v}
-        kept = [(a, b) for a, b in edges if not ({a, b} & {u, v}) or not ({a, b} <= affected)]
-        new_edges = kept + [(v, u)]
-
-        for k in shared_parents:
-            if not self.ci_test_(
-                X=u, Y=k, Z=tuple((shared_parents | {v}) - {k}), significance_level=self.significance_level
-            ):
-                new_edges.append((k, u))
-            if not self.ci_test_(X=v, Y=k, Z=tuple(shared_parents - {k}), significance_level=self.significance_level):
-                new_edges.append((k, v))
-
-        return new_edges
-
     def _find_sparser_imap(
         self,
         permutation: tuple[str, ...],
@@ -249,19 +199,14 @@ class SP(BaseCausalDiscovery):
     ) -> tuple[tuple[str, ...], list[tuple[str, str]]] | None:
         """
         Depth-first search for a sparser minimal I-MAP reachable from the current one via a weakly decreasing sequence
-        of covered edge reversals (the inner search step of Algorithm 4).
+        of covered edge reversals.
 
-        A covered edge reversal corresponds to an adjacent transposition of the ordering: swapping two consecutive
-        variables u, v (u immediately precedes v) whose edge u -> v is covered (u and v have identical parents, aside
-        from u itself being a parent of v). Only adjacent swaps are guaranteed not to disturb any other variable's set
-        of predecessors, which is what lets `_reverse_covered_edge` retest just the O(|shared parents|) relations near
-        u, v (Lemma 23) instead of rebuilding the whole I-MAP. Swapping two non-adjacent variables, even with a covered
-        edge between them, could silently change a third variable's conditioning set and would not be a valid single
-        move.
-
-        The search explores such adjacent-swap reversals depth-first, up to `max_depth` reversals from the starting
-        I-MAP (unbounded if `max_depth` is None), and returns as soon as it finds an I-MAP with strictly fewer edges
-        than the starting one.
+        An edge (u, v) is covered if u and v have exactly the same parents, aside from u itself being a parent of v;
+        this is checked via `DAG.get_parents` on the I-MAP built at each step of the search. Reversing a covered edge
+        corresponds to swapping u and v in the ordering and rebuilding the I-MAP from that new ordering; this always
+        produces a valid I-MAP, sometimes with the same number of edges and occasionally with strictly fewer. The search
+        explores such reversals depth-first, up to `max_depth` reversals from the starting I-MAP (unbounded if
+        `max_depth` is None), and returns as soon as it finds an I-MAP with strictly fewer edges than the starting one.
 
         Parameters
         ----------
@@ -293,21 +238,17 @@ class SP(BaseCausalDiscovery):
             imap.add_nodes_from(perm)
             imap.add_edges_from(es)
 
-            for i in range(len(perm) - 1):
-                u, v = perm[i], perm[i + 1]
-                if not imap.has_edge(u, v):
-                    continue  # no edge between these adjacent nodes, nothing to reverse
-
+            for u, v in es:
                 # (u, v) is covered if u and v have identical parent sets, other than u being a parent of v.
-                shared_parents = set(imap.get_parents(u))
-                if shared_parents != set(imap.get_parents(v)) - {u}:
+                if set(imap.get_parents(u)) != set(imap.get_parents(v)) - {u}:
                     continue
 
                 new_perm = list(perm)
-                new_perm[i], new_perm[i + 1] = v, u
+                idx_u, idx_v = new_perm.index(u), new_perm.index(v)
+                new_perm[idx_u], new_perm[idx_v] = new_perm[idx_v], new_perm[idx_u]
                 new_perm = tuple(new_perm)
 
-                new_edges = self._reverse_covered_edge(es, u, v, shared_parents)
+                new_edges = self._build_imap_edges(new_perm)
                 key = frozenset(new_edges)
                 if key in visited:
                     continue
